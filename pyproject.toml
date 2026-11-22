@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "phosphene-evolutions"
+version = "0.1.0"
+description = "Two-parameter evolution families, infinitesimal generators, and invariant-preserving numerical operators on Banach spaces."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Phosphene Team", email = "flow@ind.media" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.100.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phosphene"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --durations=10"
