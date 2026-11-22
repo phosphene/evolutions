@@ -10,13 +10,15 @@ Part of the **Phosphene Platform** architecture.
 
 `phosphene-evolutions` uses quantitative derivatives modeling and continuous-time Markov chain (CTMC) local-stochastic volatility engines as its applied grounding.
 
-In production quantitative finance, pricing continuous diffusions requires discretizing spot asset and variance processes onto spatial grids and propagating probability densities across option maturities. Standard industry engines suffer from a severe structural defect: **tenor-by-tenor curve bootstrapping**. By approximating continuous term structures as piecewise-constant across maturity pillars $T_1 < T_2 < \dots < T_M$, standard engines treat non-commuting generators as locally autonomous ($[Q(T_a), Q(T_b)] \neq \mathbf{0}$), injecting $\mathcal{O}(\Delta T)$ discretization bias directly into forward-skew sensitivities (vanna and volga).
+In quantitative modeling of continuous diffusions, continuous parameter curves (such as volatility term structures $\sigma(t)$, hazard rates $\lambda(t)$, or demographic rates) are frequently discretized onto piecewise-constant observation pillars $T_1 < T_2 < \dots < T_M$. When infinitesimal generators fail to commute ($[Q(T_a), Q(T_b)] \neq \mathbf{0}$), conflating curve calibration with time-stepping numerical propagation injects $\mathcal{O}(\Delta T)$ discretization bias into higher-order sensitivities.
 
-`phosphene-evolutions` eliminates this defect by decoupling continuous calibration curve fitting from numerical propagation:
-- **Continuous Calibration Decoupling:** Market term structures $\sigma(t), r(t), \lambda(t)$ are represented as smooth callables $t \mapsto A(t)$ inside `TimeDependentMetzlerGenerator`.
-- **Lie-Algebraic Magnus Integration:** `magnus4` integrates non-commuting volatility dynamics via Lie brackets ($[M_2, M_1]$) with global 4th-order accuracy, preserving total probability mass identically ($\mathbf{1}^\top [M_2, M_1] \equiv \mathbf{0}^\top$).
-- **Underflow-Safe Long-Horizon Pricing:** `fox_glynn_uniformization` eliminates IEEE-754 underflow for long-dated contracts ($\alpha = \gamma \Delta T > 700$) by centering Poisson summation at mode $m = \lfloor \alpha \rfloor$.
-- **Hedge Sensitivity Invariance:** `temporal_mesh_invariance` and `state_truncation_invariance` certify that desk Greeks (cross-gamma, vanna, volga) reflect true continuous market dynamics rather than tenor-grid or spatial mesh placement.
+### Architectural Separation: Mode D vs. Mode S
+Rather than treating parameter calibration and state propagation as a single monolithic procedure, `phosphene-evolutions` enforces an explicit separation of concerns:
+
+- **Mode D (Deductive Operator Algebra):** The propagation engine operates strictly within closed algebraic and Banach space invariants. Infinitesimal generators satisfy exact conservation laws ($\mathbf{1}^\top Q = \mathbf{0}^\top$), state vectors preserve probability simplex closure ($\Delta^K$), and non-autonomous families preserve Lie algebra commutator structures ($\mathbf{1}^\top [M_2, M_1] \equiv \mathbf{0}^\top$).
+- **Mode S (Stochastic & Qualitative Parameter Approximation):** Continuous calibration curves are treated as an external approximation layer that supplies smooth time-dependent parameter callables $t \mapsto A(t)$ to `TimeDependentMetzlerGenerator`.
+
+Decoupling continuous calibration from numerical propagation is an **architectural principle**, not an unearned empirical hypothesis. This separation isolates approximation errors to their native layers, preserves the deductive verification of operator algebra, and raises capacity for later compositional orchestration across financial derivatives, demographic transitions, and macroevolutionary diffusion models.
 
 ---
 
