@@ -102,7 +102,7 @@ Instead of inventing an ad-hoc heuristic or clipping matrix entries:
    $$h \le \frac{6}{\sqrt{3}} \frac{\min_{i \ne j} (M_1 + M_2)_{ij}}{\max_{i \ne j} |[M_2, M_1]_{ij}|}$$
 
 ### 4.3 Invariant 3: Simplex Restoration via Euclidean Projection (Wang & Carreira-Perpiñán 2013)
-Even when $\Omega$ is an exact generator, evaluating the matrix exponential on floating-point hardware (via Al-Mohy & Higham 2009 Padé scaling and squaring) introduces finite-precision roundoff $\mathcal{O}(\epsilon_{\text{mach}})$, occasionally producing subnormal negative probabilities ($p_i \approx -10^{-16}$).
+Even when $\Omega$ is an exact generator, evaluating the matrix exponential under finite-precision arithmetic (via Al-Mohy & Higham 2009 Padé scaling and squaring) introduces rounding error $\mathcal{O}(\epsilon_{\text{mach}})$, occasionally producing subnormal negative probabilities ($p_i \approx -10^{-16}$).
 
 Following the proven Phase 1 primitive in `phosphene.evolutions.core.simplex`, the output of the matrix exponential is passed through the exact $O(K \log K)$ Euclidean projection onto the probability simplex $\Delta^K$ (Wang & Carreira-Perpiñán 2013). This completely eliminates negative probabilities without ad-hoc clamping or heuristic rescaling.
 
