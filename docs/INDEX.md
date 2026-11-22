@@ -25,7 +25,14 @@ All mathematical primitives, numerical compromises, and Python implementations f
      - Spectral stiffness barrier vs. uniformization vs. scaling-and-squaring (Stewart 1994; Sidje & Stewart 1999).
    - Precursor genealogy mapping functional analysis down to IEEE 754 silicon.
 
-3. **[Local Python Numerical Genealogy, Patterns & Anti-Patterns](PYTHON_NUMERICAL_GENEALOGY.md)**
+3. **[Non-Autonomous Evolution Families & Magnus Integrators](NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md)**
+   - Mathematical formulation of non-autonomous master equations $\dot{p}(t) = A(t)^T p(t)$ on Banach spaces.
+   - Non-commutativity barrier $[A(t_1), A(t_2)] \neq 0$ and Lie-algebraic Magnus series (Magnus 1954; Blanes et al. 2009).
+   - Invariant preservation: algebraic proof that $[M_2, M_1]$ preserves zero column sums identically.
+   - Literature-grounded countermeasures: convergence radius bounds (Moan 2002; Casas 2007) and Wang & Carreira-Perpiñán (2013) simplex projection.
+   - High-order numerical integrators: Midpoint Magnus-2 (Order 2) and Gauss–Legendre 2-point Magnus-4 (Order 4).
+
+4. **[Local Python Numerical Genealogy, Patterns & Anti-Patterns](PYTHON_NUMERICAL_GENEALOGY.md)**
    - Cross-domain survey of operator propagation across 5 distinct vertices of the scientific Python ecosystem:
      - `scipy.linalg.expm` vs. `scipy.sparse.linalg.expm_multiply`
      - `QuTiP` (`qutip.mesolve` quantum master equations)
