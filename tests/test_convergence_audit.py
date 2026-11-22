@@ -1,34 +1,51 @@
-"""Verification of Richardson step-halving convergence audit."""
+"""Tests for Richardson step-halving convergence audit.
+
+Genealogy:
+    Richardson (1911); Roache (1998); ASME V&V 20 (2009).
+"""
 
 from __future__ import annotations
 
-import math
-import numpy as np
 import pytest
 
-from phosphene.evolutions.verification.convergence import audit_richardson_convergence
+from phosphene.evolutions.verification.convergence import richardson_convergence
 
 
 def test_richardson_second_order_convergence():
-    """Verify detection of theoretical 2nd-order convergence (e.g. midpoint rule)."""
-    # Synthetic operator with known error E(h) = 3.5 * h^2 + O(h^3)
-    exact_value = 42.0
-    def evaluator(h: float) -> float:
-        return exact_value + 3.5 * (h ** 2.0)
+    """Verify Richardson audit on an exact second-order numerical error expansion.
 
-    res = audit_richardson_convergence(evaluator, base_step=0.2)
+    f(h) = 1.0 + 0.5 * h^2 + 0.1 * h^3.
+    Expected observed convergence order p_obs ~ 2.0.
+    """
+
+    def evaluator(h: float) -> float:
+        return 1.0 + 0.5 * (h**2) + 0.1 * (h**3)
+
+    res = richardson_convergence(evaluator, base_step=0.2)
+
     assert res["converged"] == 1.0
-    assert np.isclose(res["order_of_convergence"], 2.0, atol=1e-3)
-    assert np.isclose(res["extrapolated_continuum_value"], exact_value, atol=1e-6)
+    assert 1.95 < res["order_of_convergence"] < 2.05
+    assert abs(res["extrapolated_continuum_value"] - 1.0) < 1e-3
     assert res["relative_discretization_error"] < 0.05
 
 
 def test_richardson_divergence_detection():
-    """Verify detection of non-monotonic or oscillatory grid dependence."""
-    # Synthetic oscillating evaluator
-    def oscillatory(h: float) -> float:
-        return 1.0 + math.sin(1.0 / h)
+    """Verify Richardson audit detects oscillatory / non-monotonic behavior."""
 
-    res = audit_richardson_convergence(oscillatory, base_step=0.1)
-    # Oscillatory ratios yield converged == 0.0 or nan
-    assert res["converged"] == 0.0 or math.isnan(res["extrapolated_continuum_value"])
+    def oscillatory(h: float) -> float:
+        # Non-monotonic values across step halving
+        if h > 0.08:
+            return 1.0
+        elif h > 0.04:
+            return 1.5
+        else:
+            return 0.8
+
+    res = richardson_convergence(oscillatory, base_step=0.1)
+    assert res["converged"] == 0.0
+    assert res["order_of_convergence"] == -1.0
+
+
+def test_richardson_invalid_step_raises():
+    with pytest.raises(ValueError, match="strictly positive"):
+        richardson_convergence(lambda h: 1.0, base_step=-0.1)

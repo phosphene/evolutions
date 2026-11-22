@@ -15,17 +15,17 @@ import pytest
 from phosphene.evolutions.core.simplex import project_to_simplex
 from phosphene.evolutions.generators.metzler import (
     ConservativeMetzlerGenerator,
-    audit_generator_stiffness,
-    construct_zero_flux_metzler,
+    spectral_stiffness,
+    zero_flux_birth_death_generator,
 )
-from phosphene.evolutions.integrators.pade import propagate_pade
+from phosphene.evolutions.integrators.pade import pade_exponential
 from phosphene.evolutions.integrators.uniformization import (
-    propagate_fox_glynn,
-    propagate_uniformization,
+    fox_glynn_uniformization,
+    jensen_uniformization,
 )
 from phosphene.evolutions.verification.convergence import (
-    audit_state_space_truncation_invariance,
-    audit_temporal_mesh_invariance,
+    state_truncation_invariance,
+    temporal_mesh_invariance,
 )
 
 
@@ -36,7 +36,7 @@ def test_zero_flux_metzler_construction_and_mass_conservation():
     # Death rates mu_1, ..., mu_K
     death_rates = [0.4, 0.6, 1.0]
 
-    gen = construct_zero_flux_metzler(birth_rates, death_rates)
+    gen = zero_flux_birth_death_generator(birth_rates, death_rates)
     assert gen.dimension == 4
 
     mat = gen.matrix
@@ -54,8 +54,8 @@ def test_symmetrized_eigensolver_matches_general_schur():
     birth_rates = [2.0, 1.5, 1.0, 0.5]
     death_rates = [0.5, 1.0, 1.5, 2.0]
 
-    gen = construct_zero_flux_metzler(birth_rates, death_rates)
-    audit = audit_generator_stiffness(gen)
+    gen = zero_flux_birth_death_generator(birth_rates, death_rates)
+    audit = spectral_stiffness(gen)
 
     # Re-compute eigenvalues with general standard Schur/QR
     exact_eigs = np.linalg.eigvals(gen.matrix)
@@ -84,13 +84,13 @@ def test_fox_glynn_underflow_safety_and_agreement():
     """Unit 5: Verify Fox-Glynn Poisson uniformization matches Padé across moderate and stiff alpha."""
     birth_rates = [1.0, 1.5]
     death_rates = [0.8, 1.2]
-    gen = construct_zero_flux_metzler(birth_rates, death_rates)
+    gen = zero_flux_birth_death_generator(birth_rates, death_rates)
 
     p0 = np.array([0.2, 0.5, 0.3])
     tau = 5.0
 
-    p_pade = propagate_pade(gen, p0, tau)
-    p_fg = propagate_fox_glynn(gen, p0, tau)
+    p_pade = pade_exponential(gen, p0, tau)
+    p_fg = fox_glynn_uniformization(gen, p0, tau)
 
     # Fox-Glynn matches Padé on moderate stiffness
     assert np.allclose(p_fg, p_pade, atol=1e-5)
@@ -107,8 +107,8 @@ def test_fox_glynn_extreme_stiffness_beyond_underflow_horizon():
     tau = 5.0  # alpha = 300 * 5 = 1500 >> 709.78 (underflow horizon)
 
     # Standard uniformization automatically routes to Fox-Glynn
-    p_tau = propagate_uniformization(gen, p0, tau)
-    p_pade = propagate_pade(gen, p0, tau)
+    p_tau = jensen_uniformization(gen, p0, tau)
+    p_pade = pade_exponential(gen, p0, tau)
 
     assert np.allclose(p_tau, p_pade, atol=1e-5)
     assert np.all(p_tau >= 0.0)
@@ -121,7 +121,7 @@ def test_dual_axis_richardson_temporal_and_state_truncation():
     def mock_temporal_solver(dt: float) -> np.ndarray:
         return np.array([0.5 + 0.1 * (dt**2), 0.5 - 0.1 * (dt**2)])
 
-    temp_audit = audit_temporal_mesh_invariance(mock_temporal_solver, base_dt=0.1)
+    temp_audit = temporal_mesh_invariance(mock_temporal_solver, base_dt=0.1)
     assert temp_audit["converged"] == 1.0
     assert 1.9 < temp_audit["order_of_convergence"] < 2.1
 
@@ -130,6 +130,6 @@ def test_dual_axis_richardson_temporal_and_state_truncation():
         # Observable error decays as 1/K
         return 1.0 - 1.0 / float(k)
 
-    k_audit = audit_state_space_truncation_invariance(mock_k_solver, base_k=10)
+    k_audit = state_truncation_invariance(mock_k_solver, base_k=10)
     assert k_audit["converged"] == 1.0
     assert k_audit["truncation_leak_detected"] == 0.0

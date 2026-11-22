@@ -9,21 +9,21 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from phosphene.evolutions.core.algebra import matrix_commutator
+from phosphene.evolutions.core.algebra import commutator
 
 
 def test_commutator_antisymmetry_and_zero():
     a = np.array([[1.0, 2.0], [3.0, 4.0]])
     b = np.array([[0.5, -1.0], [2.0, 0.0]])
 
-    comm_ab = matrix_commutator(a, b)
-    comm_ba = matrix_commutator(b, a)
+    comm_ab = commutator(a, b)
+    comm_ba = commutator(b, a)
 
     # Antisymmetry: [A, B] == -[B, A]
     assert np.allclose(comm_ab, -comm_ba, atol=1e-14)
 
     # Identity: [A, A] == 0
-    assert np.allclose(matrix_commutator(a, a), 0.0, atol=1e-14)
+    assert np.allclose(commutator(a, a), 0.0, atol=1e-14)
 
 
 def test_commutator_preserves_zero_column_sums():
@@ -41,7 +41,7 @@ def test_commutator_preserves_zero_column_sums():
     assert np.allclose(np.sum(a, axis=0), 0.0, atol=1e-14)
     assert np.allclose(np.sum(b, axis=0), 0.0, atol=1e-14)
 
-    comm = matrix_commutator(b, a)
+    comm = commutator(b, a)
     col_sums = np.sum(comm, axis=0)
 
     # Column sum of Lie bracket must vanish to machine precision
@@ -52,4 +52,4 @@ def test_commutator_dimension_mismatch_raises():
     a = np.eye(3)
     b = np.eye(2)
     with pytest.raises(ValueError, match="shape mismatch"):
-        matrix_commutator(a, b)
+        commutator(a, b)

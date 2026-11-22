@@ -17,9 +17,9 @@ Mathematical Formulation:
         p(s + h) = exp(Omega(s, h)) p(s)
 
     Integrators Implemented:
-        1. propagate_magnus2: 1-point Gauss-Legendre (Midpoint) Magnus integrator (Order 2).
+        1. magnus2: 1-point Gauss-Legendre (Midpoint) Magnus integrator (Order 2).
            Omega^{[2]}(s, h) = h * A(s + h/2)^T + O(h^3)
-        2. propagate_magnus4: 2-point Gauss-Legendre Magnus integrator (Order 4).
+        2. magnus4: 2-point Gauss-Legendre Magnus integrator (Order 4).
            c_1 = 1/2 - sqrt(3)/6,  c_2 = 1/2 + sqrt(3)/6
            M_1 = A(s + c_1 * h)^T, M_2 = A(s + c_2 * h)^T
            Omega^{[4]}(s, h) = (h/2) * (M_1 + M_2) + (sqrt(3)*h^2 / 12) * [M_2, M_1] + O(h^5)
@@ -29,7 +29,7 @@ Silicon Compromises & Numerical Invariants:
        Both the midpoint and Gauss-Legendre Magnus generators Omega satisfy 1^T Omega == 0^T.
     2. Simplex Projection:
        Evaluating expm(Omega) via Padé scaling & squaring may introduce subnormal
-       negative probabilities (p_i ~ -1e-16). propagate_magnus couples the operator
+       negative probabilities (p_i ~ -1e-16). The integrators couple the operator
        evaluation with Wang & Carreira-Perpiñán (2013) exact Euclidean simplex projection.
 """
 
@@ -41,12 +41,12 @@ from typing import Callable
 import numpy as np
 import scipy.linalg
 
-from phosphene.evolutions.core.algebra import matrix_commutator
+from phosphene.evolutions.core.algebra import commutator
 from phosphene.evolutions.core.simplex import project_to_simplex
 from phosphene.evolutions.generators.time_dependent import TimeDependentMetzlerGenerator
 
 
-def propagate_magnus2(
+def magnus2(
     generator: TimeDependentMetzlerGenerator | Callable[[float], np.ndarray],
     initial_distribution: np.ndarray,
     s: float,
@@ -90,7 +90,7 @@ def propagate_magnus2(
     return p
 
 
-def propagate_magnus4(
+def magnus4(
     generator: TimeDependentMetzlerGenerator | Callable[[float], np.ndarray],
     initial_distribution: np.ndarray,
     s: float,
@@ -140,7 +140,7 @@ def propagate_magnus4(
         m1 = generator(t1).T
         m2 = generator(t2).T
 
-        comm_2_1 = matrix_commutator(m2, m1)
+        comm_2_1 = commutator(m2, m1)
         omega = 0.5 * h * (m1 + m2) + (coeff_comm * (h**2)) * comm_2_1
 
         exp_omega = scipy.linalg.expm(omega)

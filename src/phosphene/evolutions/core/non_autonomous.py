@@ -13,7 +13,7 @@ import numpy as np
 
 from phosphene.evolutions.core.family import EvolutionFamily
 from phosphene.evolutions.generators.time_dependent import TimeDependentMetzlerGenerator
-from phosphene.evolutions.integrators.magnus import propagate_magnus4
+from phosphene.evolutions.integrators.magnus import magnus4
 
 
 class MagnusEvolutionFamily:
@@ -38,7 +38,7 @@ class MagnusEvolutionFamily:
 
         duration = t - s
         steps = max(1, int(np.ceil(duration * self.steps_per_unit_time)))
-        return propagate_magnus4(self.generator, state, s, t, steps=steps)
+        return magnus4(self.generator, state, s, t, steps=steps)
 
     def forward_operator(self, t: float, s: float) -> np.ndarray:
         """Construct matrix operator U(t, s) by evaluating standard basis vectors."""
