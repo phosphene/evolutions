@@ -36,7 +36,7 @@ from typing import Callable, Dict, Sequence
 import numpy as np
 
 
-def audit_richardson_convergence(
+def richardson_convergence(
     evaluator: Callable[[float], float],
     base_step: float,
 ) -> Dict[str, float]:
@@ -97,7 +97,7 @@ def audit_richardson_convergence(
     }
 
 
-def audit_temporal_mesh_invariance(
+def temporal_mesh_invariance(
     solver_fn: Callable[[float], np.ndarray],
     base_dt: float,
 ) -> Dict[str, float]:
@@ -140,7 +140,7 @@ def audit_temporal_mesh_invariance(
     }
 
 
-def audit_state_space_truncation_invariance(
+def state_truncation_invariance(
     solver_at_k: Callable[[int], float],
     base_k: int,
 ) -> Dict[str, float]:

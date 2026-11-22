@@ -13,18 +13,14 @@ Mathematical Formulation:
     the continuous transition semigroup is:
         T(tau) = exp(tau * Q^T)
     The state probability vector advances as:
-        p(t + tau) = T(tau) p(t)
+        p(tau) = T(tau) @ p(0)
 
 Silicon Compromises & Numerical Realities:
-    Al-Mohy & Higham (2009) compute exp(A) via [13/13] diagonal Padé rational approximation:
-        R_{13, 13}(Z) = [D_{13}(Z)]^{-1} N_{13}(Z)
-    combined with optimal scaling A <- 2^{-s} A and repeated squaring (R_{13, 13}(2^{-s} A))^{2^s}.
-
-    While A-stable and norm-optimal, floating-point subtraction in rational polynomials
-    frequently produces negative probability artifacts (p_i ~ -1e-16) on empty state bins.
-    propagate_pade couples scipy's Padé evaluation with Wang & Carreira-Perpiñán exact
-    Euclidean simplex projection (project_to_simplex), restoring physical non-negativity
-    and unit probability sum without ad-hoc heuristic thresholding.
+    Padé approximation evaluated via floating-point arithmetic occasionally introduces
+    subnormal negative entries (p_i ~ -1e-16) due to rational truncation and machine epsilon.
+    pade_exponential couples scipy's Padé evaluation with Wang & Carreira-Perpiñán exact
+    O(K log K) Euclidean simplex projection to guarantee strict probability validity
+    without ad-hoc clipping.
 """
 
 from __future__ import annotations
@@ -36,16 +32,16 @@ from phosphene.evolutions.core.simplex import project_to_simplex
 from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator
 
 
-def propagate_pade(
+def pade_exponential(
     generator: ConservativeMetzlerGenerator,
     initial_distribution: np.ndarray,
     duration: float,
 ) -> np.ndarray:
-    """Propagate probability distribution across duration tau via Padé scaling & squaring.
+    """Propagate state distribution via [13/13] Padé scaling and squaring with simplex projection.
 
     Args:
-        generator: ConservativeMetzlerGenerator Q with zero-flux row sums.
-        initial_distribution: 1D probability vector p(0) on Delta^K.
+        generator: ConservativeMetzlerGenerator instance Q.
+        initial_distribution: 1D probability array p(0) on Delta^K.
         duration: Elapsed time duration tau >= 0.
 
     Returns:

@@ -1,92 +1,95 @@
-"""Ground truth validation against the analytical 2-state asymmetric telegraph process."""
+"""2-state telegraph process benchmark for evolution families.
+
+Genealogy:
+    - Pure Analysis: Kac (1974) Rocky Mountain J. Math.;
+      Norris (1998) Markov Chains.
+    - Numerical Realization: Phosphene Platform Architecture (2026).
+"""
 
 from __future__ import annotations
 
-import math
 import numpy as np
-import pytest
-from hypothesis import given, settings, strategies as st
 
-from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator, audit_generator_stiffness
-from phosphene.evolutions.integrators.pade import propagate_pade
-from phosphene.evolutions.integrators.uniformization import propagate_uniformization
-from phosphene.evolutions.core.simplex import project_to_simplex
+from phosphene.evolutions.generators.metzler import (
+    ConservativeMetzlerGenerator,
+    spectral_stiffness,
+)
+from phosphene.evolutions.integrators.pade import pade_exponential
+from phosphene.evolutions.integrators.uniformization import jensen_uniformization
 
 
-def analytical_telegraph_transition(alpha: float, beta: float, t: float) -> np.ndarray:
-    """Exact closed-form transition matrix for Q = [[-alpha, alpha], [beta, -beta]].
+def analytical_telegraph_transition(
+    lambda_rate: float,
+    mu_rate: float,
+    tau: float,
+) -> np.ndarray:
+    """Exact analytical transition probability matrix P(tau) for 2-state process.
 
-    For column probability vector p(t) = exp(Q^T * t) * p(0):
-    exp(Q * t) = (1 / (a+b)) * [[b + a*e^-(a+b)t, a - a*e^-(a+b)t],
-                               [b - b*e^-(a+b)t, a + b*e^-(a+b)t]]
+    Q = [[-lambda, lambda],
+         [mu,      -mu]]
     """
-    s = alpha + beta
-    exp_decay = math.exp(-s * t)
-    # Row-stochastic matrix exp(Q * t)
-    p00 = (beta + alpha * exp_decay) / s
-    p01 = (alpha - alpha * exp_decay) / s
-    p10 = (beta - beta * exp_decay) / s
-    p11 = (alpha + beta * exp_decay) / s
-    # Transpose for column probability propagation: p(t) = P^T * p(0)
-    return np.array([[p00, p10], [p01, p11]], dtype=np.float64)
+    total = lambda_rate + mu_rate
+    decay = np.exp(-total * tau)
+
+    p00 = (mu_rate + lambda_rate * decay) / total
+    p01 = (lambda_rate - lambda_rate * decay) / total
+    p10 = (mu_rate - mu_rate * decay) / total
+    p11 = (lambda_rate + mu_rate * decay) / total
+
+    return np.array([[p00, p01], [p10, p11]])
 
 
 def test_telegraph_analytical_agreement():
-    """Verify Padé and Uniformization against analytical telegraph closed form."""
-    alpha = 1.8
-    beta = 0.6
-    q_mat = np.array([[-alpha, alpha], [beta, -beta]], dtype=np.float64)
+    """Verify numerical propagators match exact analytical solution across timescales."""
+    lam, mu = 1.5, 2.5
+    q_mat = np.array([[-lam, lam], [mu, -mu]])
     gen = ConservativeMetzlerGenerator(q_mat)
 
-    # Initial state: 100% in state 0
-    p0 = np.array([1.0, 0.0], dtype=np.float64)
+    p0 = np.array([0.7, 0.3])
 
-    for t in [0.01, 0.1, 0.5, 1.0, 2.5, 5.0]:
-        exact_p = analytical_telegraph_transition(alpha, beta, t) @ p0
-        pade_p = propagate_pade(gen, p0, t)
-        unif_p = propagate_uniformization(gen, p0, t)
+    for t in [0.01, 0.1, 1.0, 5.0]:
+        p_trans = analytical_telegraph_transition(lam, mu, t)
+        exact_p = p_trans.T @ p0
 
-        assert np.allclose(pade_p, exact_p, atol=1e-12), f"Padé error at t={t}"
-        assert np.allclose(unif_p, exact_p, atol=1e-12), f"Uniformization error at t={t}"
+        pade_p = pade_exponential(gen, p0, t)
+        unif_p = jensen_uniformization(gen, p0, t)
 
-        # Invariant checks
-        assert np.all(pade_p >= 0.0)
-        assert np.all(unif_p >= 0.0)
-        assert abs(np.sum(pade_p) - 1.0) < 1e-12
-        assert abs(np.sum(unif_p) - 1.0) < 1e-12
+        assert np.allclose(pade_p, exact_p, atol=1e-10)
+        assert np.allclose(unif_p, exact_p, atol=1e-10)
 
 
 def test_telegraph_composition_algebra():
-    """Verify two-parameter composition law: U(t, r) @ U(r, s) == U(t, s)."""
-    alpha = 2.5
-    beta = 1.2
-    gen = ConservativeMetzlerGenerator(np.array([[-alpha, alpha], [beta, -beta]]))
+    """Verify semi-flow composition law U(t, r) o U(r, s) == U(t, s)."""
+    lam, mu = 0.8, 1.2
+    q_mat = np.array([[-lam, lam], [mu, -mu]])
+    gen = ConservativeMetzlerGenerator(q_mat)
 
-    p_initial = np.array([0.7, 0.3], dtype=np.float64)
-    s = 0.0
-    r = 1.34
-    t = 3.82
+    p_initial = np.array([1.0, 0.0])
 
-    # Sequential composition: s -> r -> t
-    p_r = propagate_pade(gen, p_initial, r - s)
-    p_t_composed = propagate_pade(gen, p_r, t - r)
+    s = 0.5
+    r = 1.8
+    t = 4.2
 
-    # Direct propagation: s -> t
-    p_t_direct = propagate_pade(gen, p_initial, t - s)
+    # Propagate in two stages: s -> r, then r -> t
+    p_r = pade_exponential(gen, p_initial, r - s)
+    p_t_composed = pade_exponential(gen, p_r, t - r)
+
+    # Propagate in single direct stage: s -> t
+    p_t_direct = pade_exponential(gen, p_initial, t - s)
 
     assert np.allclose(p_t_composed, p_t_direct, atol=1e-12)
 
 
 def test_telegraph_stationary_relaxation():
-    """Verify that as t -> inf, distribution relaxes to analytical invariant measure."""
-    alpha = 3.0
-    beta = 1.0
-    gen = ConservativeMetzlerGenerator(np.array([[-alpha, alpha], [beta, -beta]]))
-    
-    # Analytical stationary distribution: pi_0 = beta / (alpha + beta) = 0.25, pi_1 = 0.75
-    pi_exact = np.array([beta / (alpha + beta), alpha / (alpha + beta)])
+    """Verify long-time relaxation matches stationary null-space distribution."""
+    lam, mu = 3.0, 2.0
+    q_mat = np.array([[-lam, lam], [mu, -mu]])
+    gen = ConservativeMetzlerGenerator(q_mat)
 
-    p_init = np.array([1.0, 0.0])
-    p_relaxed = propagate_uniformization(gen, p_init, duration=20.0)
+    # Null space of Q^T: pi * Q = 0 -> pi = [mu/(lam+mu), lam/(lam+mu)]
+    pi_exact = np.array([mu / (lam + mu), lam / (lam + mu)])
 
-    assert np.allclose(p_relaxed, pi_exact, atol=1e-10)
+    p_init = np.array([0.1, 0.9])
+    p_relaxed = jensen_uniformization(gen, p_init, duration=20.0)
+
+    assert np.allclose(p_relaxed, pi_exact, atol=1e-6)

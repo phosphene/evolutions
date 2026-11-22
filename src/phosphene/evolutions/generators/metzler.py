@@ -31,7 +31,7 @@ Mathematical Formulation:
 
 Silicon Compromises & Numerical Realities:
     1. Zero-Flux Truncation: Infinite state spaces (e.g. carrying capacity K -> inf) must
-       be truncated to a finite dimension K. construct_zero_flux_metzler enforces exact zero-flux
+       be truncated to a finite dimension K. zero_flux_birth_death_generator enforces exact zero-flux
        closure at carrying capacity ceiling K, preventing artificial probability mass leakage.
     2. Symmetrized Tridiagonal Eigensolver: Any irreducible birth-death chain satisfying detailed
        balance can be transformed via diagonal similarity S = D Q_sub D^{-1} into a real
@@ -91,11 +91,11 @@ class ConservativeMetzlerGenerator:
         return self.matrix.shape[0]
 
 
-def construct_zero_flux_metzler(
+def zero_flux_birth_death_generator(
     birth_rates: Sequence[float],
     death_rates: Sequence[float],
 ) -> ConservativeMetzlerGenerator:
-    """Construct an invariant-preserving zero-flux birth-death generator matrix.
+    """Invariant-preserving zero-flux birth-death generator matrix.
 
     For state space {0, 1, ..., K}:
         - State 0: birth_rates[0], death_rates[0]=0 (or absorbing)
@@ -145,8 +145,8 @@ def construct_zero_flux_metzler(
     return ConservativeMetzlerGenerator(q)
 
 
-def audit_generator_stiffness(generator: ConservativeMetzlerGenerator) -> Dict[str, float]:
-    """Audit spectral radius, dissipation timescales, Gershgorin CFL bound, and stiffness ratio.
+def spectral_stiffness(generator: ConservativeMetzlerGenerator) -> Dict[str, float]:
+    """Spectral radius, dissipation timescales, Gershgorin CFL bound, and stiffness ratio.
 
     Computes:
         - fastest_mode_hz: |Re(w_max)|, dominant dissipative decay rate.

@@ -57,12 +57,12 @@ For a time step $h = t - s$:
 
 Following Blanes et al. (2009 §3), we replace continuous integrals with Gauss–Legendre quadrature nodes to yield high-order, unitary/stochastic-invariant Lie-algebraic steppers for $M(t) = A(t)^T$:
 
-### 3.1 Order 2: Midpoint Magnus (`propagate_magnus2`)
+### 3.1 Order 2: Midpoint Magnus (`magnus2`)
 Using the 1-point Gauss–Legendre quadrature node $c_1 = \frac{1}{2}$:
 $$\Omega^{[2]}(s, h) = h A\left(s + \frac{h}{2}\right)^T + \mathcal{O}(h^3)$$
 Local truncation error is $\mathcal{O}(h^3)$, yielding global order 2 ($\mathcal{O}(h^2)$).
 
-### 3.2 Order 4: Gauss–Legendre 2-Point Magnus (`propagate_magnus4`)
+### 3.2 Order 4: Gauss–Legendre 2-Point Magnus (`magnus4`)
 Using the symmetric 2-point Gauss–Legendre quadrature nodes:
 $$c_1 = \frac{1}{2} - \frac{\sqrt{3}}{6}, \quad c_2 = \frac{1}{2} + \frac{\sqrt{3}}{6}$$
 Evaluate the generator transpose at the quadrature points:
@@ -125,16 +125,16 @@ The Phase 2 architecture decomposes into four distinct, testable units of reason
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                    2. Pure Lie Algebra Operators                             │
 │                                                                              │
-│   • matrix_commutator(A, B) = A @ B - B @ A                                  │
+│   • commutator(A, B) = A @ B - B @ A                                         │
 │   • Proof of invariant: 1ᵀ [A, B] == 0 to machine precision                  │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                    3. Non-Autonomous Magnus Propagators                      │
+│                    3. Non-Autonomous Magnus Integrators                      │
 │                                                                              │
-│   • propagate_magnus2: 1-point Gauss-Legendre (Midpoint), Order 2            │
-│   • propagate_magnus4: 2-point Gauss-Legendre, Order 4                       │
+│   • magnus2: 1-point Gauss-Legendre (Midpoint), Order 2                      │
+│   • magnus4: 2-point Gauss-Legendre, Order 4                                 │
 │   • Both evaluate expm(Ω) coupled with project_to_simplex                    │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
@@ -148,23 +148,3 @@ The Phase 2 architecture decomposes into four distinct, testable units of reason
 │     Order 2: p_obs ≈ 2.0; Order 4: p_obs ≈ 4.0                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## 6. Analytical Ground Truths for Verification
-
-To satisfy Contract 3, propagators are benchmarked against exact analytical solutions of non-commuting time-dependent systems:
-
-### 6.1 Benchmark 1: Commuting Time-Dependent System (Harmonic Drive)
-Let $Q$ be a fixed Metzler generator, and let $A(t) = f(t) Q$ where $f(t) > 0$ is a scalar modulation. Since $[A(t_1), A(t_2)] = f(t_1)f(t_2)[Q, Q] = \mathbf{0}$, the exact propagator is:
-$$U(t, s) = \exp\left( \left(\int_s^t f(\tau) d\tau\right) Q^T \right)$$
-Both Magnus-2 and Magnus-4 must match this analytical benchmark to machine precision.
-
-### 6.2 Benchmark 2: Non-Commuting 2-State Driven Telegraph Process
-A 2-state continuous-time Markov chain with time-periodic transition rates:
-$$A(t) = \begin{pmatrix} -\lambda_1(t) & \lambda_1(t) \\ \lambda_2(t) & -\lambda_2(t) \end{pmatrix}$$
-with $\lambda_1(t) = \alpha + \beta \cos(\omega t)$ and $\lambda_2(t) = \gamma + \delta \sin(\omega t)$.
-Because $[A(t_1), A(t_2)] \neq \mathbf{0}$, this tests the non-commuting Lie bracket terms directly.
-Convergence rates are validated via Richardson extrapolation over halving step sizes:
-$$p_{\text{obs}} = \log_2 \left( \frac{\|p_{4h} - p_{2h}\|}{\|p_{2h} - p_h\|} \right)$$
-verifying $p_{\text{obs}} \approx 2$ for Magnus-2 and $p_{\text{obs}} \approx 4$ for Magnus-4.

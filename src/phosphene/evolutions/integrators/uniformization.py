@@ -44,7 +44,7 @@ from phosphene.evolutions.core.simplex import project_to_simplex
 from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator
 
 
-def propagate_uniformization(
+def jensen_uniformization(
     generator: ConservativeMetzlerGenerator,
     initial_distribution: np.ndarray,
     duration: float,
@@ -83,7 +83,7 @@ def propagate_uniformization(
 
     # If alpha exceeds float64 underflow boundary, route to Fox-Glynn
     if alpha > 700.0:
-        return propagate_fox_glynn(generator, initial_distribution, duration, tol=tol)
+        return fox_glynn_uniformization(generator, initial_distribution, duration, tol=tol)
 
     p_disc = np.eye(n, dtype=np.float64) + (1.0 / gamma) * q.T
 
@@ -105,7 +105,7 @@ def propagate_uniformization(
     return project_to_simplex(acc)
 
 
-def propagate_fox_glynn(
+def fox_glynn_uniformization(
     generator: ConservativeMetzlerGenerator,
     initial_distribution: np.ndarray,
     duration: float,

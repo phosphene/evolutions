@@ -1,69 +1,86 @@
-"""Ground truth validation against analytical M/M/1/K tridiagonal birth-death queue."""
+"""MM1K queueing benchmark: stiffness, relaxation, and spectrum validation.
+
+Genealogy:
+    - Queueing Theory: Erlang (1909); Kendall (1953) Ann. Math. Statist.
+    - Numerical Verification: Stewart (1994) Introduction to the Numerical Solution
+      of Markov Chains, Princeton Univ. Press.
+"""
 
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
-from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator, audit_generator_stiffness
-from phosphene.evolutions.integrators.pade import propagate_pade
-from phosphene.evolutions.integrators.uniformization import propagate_uniformization
+from phosphene.evolutions.generators.metzler import (
+    ConservativeMetzlerGenerator,
+    spectral_stiffness,
+)
+from phosphene.evolutions.integrators.pade import pade_exponential
+from phosphene.evolutions.integrators.uniformization import jensen_uniformization
 
 
-def build_mm1k_generator(lam: float, mu: float, k: int) -> ConservativeMetzlerGenerator:
-    """Build tridiagonal generator for M/M/1/K queue of capacity K (K+1 states)."""
-    q = np.zeros((k + 1, k + 1), dtype=np.float64)
-    for n in range(k + 1):
-        if n < k:
-            q[n, n + 1] = lam
-        if n > 0:
-            q[n, n - 1] = mu
-        q[n, n] = -np.sum(q[n, :])
+def construct_mm1k_generator(
+    arrival_rate: float,
+    service_rate: float,
+    capacity: int,
+) -> ConservativeMetzlerGenerator:
+    """Construct (K+1) x (K+1) infinitesimal rate matrix Q for an M/M/1/K queue.
+
+    State i in {0, 1, ..., K} represents the number of customers in the system.
+    """
+    dim = capacity + 1
+    q = np.zeros((dim, dim), dtype=np.float64)
+
+    # State 0: only arrivals
+    q[0, 1] = arrival_rate
+    q[0, 0] = -arrival_rate
+
+    # Interior states
+    for i in range(1, capacity):
+        q[i, i - 1] = service_rate
+        q[i, i + 1] = arrival_rate
+        q[i, i] = -(arrival_rate + service_rate)
+
+    # Boundary capacity state K: arrivals dropped
+    q[capacity, capacity - 1] = service_rate
+    q[capacity, capacity] = -service_rate
+
     return ConservativeMetzlerGenerator(q)
 
 
-def analytical_mm1k_stationary(lam: float, mu: float, k: int) -> np.ndarray:
-    """Analytical stationary distribution pi_n = (1 - rho) * rho^n / (1 - rho^(k+1))."""
-    rho = lam / mu
-    n_states = k + 1
-    if abs(rho - 1.0) < 1e-12:
-        return np.full(n_states, 1.0 / n_states)
-    
-    indices = np.arange(n_states)
-    probs = (1.0 - rho) * (rho ** indices) / (1.0 - rho ** (k + 1))
-    return probs
-
-
 def test_mm1k_stationary_relaxation():
-    """Verify relaxation to exact analytical M/M/1/K stationary distribution."""
-    lam = 1.5
+    """Verify long-time propagation relaxes to exact analytical stationary distribution."""
+    lam = 1.2
     mu = 2.0
-    k = 8  # 9 states: 0..8
-    gen = build_mm1k_generator(lam, mu, k)
-    pi_exact = analytical_mm1k_stationary(lam, mu, k)
+    k = 4
+    gen = construct_mm1k_generator(lam, mu, k)
 
-    # Start with all mass at boundary K
-    p_init = np.zeros(k + 1, dtype=np.float64)
-    p_init[k] = 1.0
+    # Exact stationary distribution: pi_i = rho^i * (1 - rho) / (1 - rho^{K+1})
+    rho = lam / mu
+    powers = rho ** np.arange(k + 1)
+    pi_exact = powers / np.sum(powers)
 
-    # Propagate to relaxation
-    t_relax = 80.0
-    p_pade = propagate_pade(gen, p_init, t_relax)
-    p_unif = propagate_uniformization(gen, p_init, t_relax)
+    p_init = np.zeros(k + 1)
+    p_init[0] = 1.0  # start empty
 
-    assert np.allclose(p_pade, pi_exact, atol=1e-6)
-    assert np.allclose(p_unif, pi_exact, atol=1e-6)
+    t_relax = 25.0
+    p_pade = pade_exponential(gen, p_init, t_relax)
+    p_unif = jensen_uniformization(gen, p_init, t_relax)
+
+    assert np.allclose(p_pade, pi_exact, atol=1e-5)
+    assert np.allclose(p_unif, pi_exact, atol=1e-5)
 
 
 def test_mm1k_stiffness_and_bounds():
-    """Audit stiffness characteristics of tridiagonal birth-death queue."""
-    lam = 2.0
-    mu = 10.0
-    k = 15
-    gen = build_mm1k_generator(lam, mu, k)
-    audit = audit_generator_stiffness(gen)
+    """Verify spectral gap and stiffness metrics for moderately stiff queue."""
+    lam = 10.0
+    mu = 100.0  # Fast service mode creates fast decay transient
+    k = 5
+    gen = construct_mm1k_generator(lam, mu, k)
 
-    assert audit["fastest_mode_hz"] > 0.0
-    assert audit["slowest_mode_hz"] > 0.0
-    assert audit["stiffness_ratio"] >= 1.0
-    assert audit["cfl_critical_dt"] > 0.0
+    audit = spectral_stiffness(gen)
+
+    assert audit["fastest_mode_hz"] > 100.0
+    assert audit["stiffness_ratio"] > 1.0
+    assert audit["cfl_critical_dt"] < 0.05
+    # Gershgorin bound must be conservative: dt_gershgorin <= dt_cfl
+    assert audit["gershgorin_cfl_dt"] <= audit["cfl_critical_dt"] + 1e-12

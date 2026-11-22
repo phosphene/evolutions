@@ -24,8 +24,8 @@ from __future__ import annotations
 import numpy as np
 
 
-def matrix_commutator(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Compute the Lie bracket / matrix commutator [A, B] = A @ B - B @ A.
+def commutator(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compute the Lie bracket / commutator [A, B] = A @ B - B @ A.
 
     Args:
         a: Real or complex square matrix in R^{K x K}.

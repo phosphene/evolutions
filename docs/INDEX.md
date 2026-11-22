@@ -9,20 +9,19 @@ All mathematical primitives, numerical compromises, and Python implementations f
 ## Architecture & Epistemic Documents
 
 1. **[Literate Specification & Tractable Decomposition](LITERATE_SPECIFICATION.md)**
-   - Decomposes the mathematical kernel into five isolated, immutable units of reason:
-     - Unit 1: Core Banach Algebra (`EvolutionFamily` Protocol)
-     - Unit 2: Geometry of the State Space (`project_to_simplex`)
-     - Unit 3: Infinitesimal Generators (`ConservativeMetzlerGenerator` & stiffness audit)
-     - Unit 4: Numerical Propagators (Padé scaling & squaring, Jensen uniformization)
-     - Unit 5: Verification & Validation (`audit_richardson_convergence`)
-   - Detailed table of computational invariants and failure modes prevented.
+   - Decomposes the mathematical kernel into isolated, immutable units of reason:
+     - Unit 1: Core Banach Algebra (`EvolutionFamily` Protocol, Lie bracket `commutator`)
+     - Unit 2: Geometry of the State Space (`project_to_simplex` with boundary isolation)
+     - Unit 3: Infinitesimal Generators (`ConservativeMetzlerGenerator`, `zero_flux_birth_death_generator`, `spectral_stiffness`, `TimeDependentMetzlerGenerator`)
+     - Unit 4: Propagators & Integrators (`pade_exponential`, `jensen_uniformization`, `fox_glynn_uniformization`, `magnus2`, `magnus4`, `MagnusEvolutionFamily`)
+     - Unit 5: Verification & Validation (`richardson_convergence`, `temporal_mesh_invariance`, `state_truncation_invariance`)
+   - Complete invariant failure-mode mappings and Design for Testability (DFT) contracts.
 
 2. **[Mathematical Genealogy & Numerical Compromises](NUMERICAL_GENEALOGY_AND_COMPROMISES.md)**
-   - Classical functional analysis foundation: Kato (1953), Tanabe (1960), Pazy (1983).
-   - Explicit analysis of where, why, and how numerical methods compromise pure continuous algebra:
-     - Countable state space truncation vs. reflecting boundary closure (Tweedie 1967; Seneta 1968; Munsky & Khammash 2006).
-     - Padé rational cancellations vs. exact Euclidean simplex projection (Michelot 1986; Duchi et al. 2008; Wang & Carreira-Perpiñán 2013).
-     - Spectral stiffness barrier vs. uniformization vs. scaling-and-squaring (Stewart 1994; Sidje & Stewart 1999).
+   - Theoretical tensions between continuous operator algebra and IEEE 754 floating-point arithmetic.
+   - Exact Euclidean simplex projection vs. ad-hoc clipping (Wang & Carreira-Perpiñán 2013).
+   - Poisson uniformization vs. scaling-and-squaring (Jensen 1953; Grassmann 1977; Fox & Glynn 1988).
+   - Diagonal similarity symmetrization of birth-death chains (Keilson 1979; Anderson 1991).
    - Precursor genealogy mapping functional analysis down to IEEE 754 silicon.
 
 3. **[Non-Autonomous Evolution Families & Magnus Integrators](NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md)**

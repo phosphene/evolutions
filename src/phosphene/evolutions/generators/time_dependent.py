@@ -28,7 +28,7 @@ from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator
 
 
 @runtime_checkable
-class TimeDependentGeneratorFn(Protocol):
+class TimeDependentGenerator(Protocol):
     """Protocol for a callable returning a generator matrix at time t."""
 
     def __call__(self, t: float) -> np.ndarray:
