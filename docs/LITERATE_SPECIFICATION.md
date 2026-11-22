@@ -63,8 +63,13 @@ In the Phosphene platform architecture, a mathematical system is decomposed not 
 | Unit of Reason | Mathematical Object | Computational Invariant | Failure Mode Prevented |
 |---|---|---|---|
 | `EvolutionFamily` | Two-parameter semi-flow $\{U(t, s)\}$ | $U(t, r) U(r, s) = U(t, s)$ | Discontinuous state propagation across time sub-intervals |
-| `project_to_simplex` | Convex projection onto $\Delta^K$ | $\min_i p_i \ge 0, \; \sum_i p_i = 1.0$ | Subnormal negative probability mass ($p \approx -10^{-16}$) destroying log-likelihood |
+| `construct_zero_flux_metzler` | Zero-flux tridiagonal generator $\mathbf{Q}$ | $\mathbf{Q}_{\text{fwd}} = \mathbf{Q}_{\text{row}}^\top, \; \sum_j q_{ij} \equiv 0$ | Spurious probability creation/leakage at ceiling $K$ |
+| `audit_generator_stiffness` | Symmetrized spectral audit $\mathbf{D}\mathbf{Q}\mathbf{D}^{-1}$ | Exact real eigenvalues in $\mathcal{O}(K^2)$, Gershgorin CFL bound | $\mathcal{O}(K^3)$ complex Schur bottleneck; explicit step blowup |
+| `project_to_simplex` | Convex projection onto $\Delta^K$ with boundary isolation | $\min_i p_i \ge 0, \; \sum_i p_i = 1.0, \; p_0 \equiv \text{const}$ | Subnormal negatives; Lagrange shift contaminating absorbing extinction state $p_0$ |
 | `ConservativeMetzlerGenerator` | Continuous-time jump generator $\mathbf{Q}$ | $\sum_j q_{ij} \equiv 0, \; q_{ij} \ge 0 \; (i \neq j)$ | Unmodeled probability sinks / artificial mass creation |
 | `propagate_pade` | $[13/13]$ Padé matrix exponential | Unconditional A-stability across stiff timescales | Numerical blowup of fast transient decay modes |
 | `propagate_uniformization` | Randomization series | Explicit non-negative stochastic matrix summation | Heuristic projection or thresholding |
+| `propagate_fox_glynn` | Mode-centered Poisson randomization | Underflow-safe summation for $\alpha > 700$, $\mathcal{O}(\sqrt{\alpha})$ complexity | IEEE-754 double precision underflow ($e^{-\alpha} \to 0.0$) in deep branches |
 | `audit_richardson_convergence` | Grid refinement sequence | Monotonic grid convergence $p_{\text{obs}} > 0$ | Undetected mesh-dependent spatial or temporal discretization error |
+| `audit_temporal_mesh_invariance` | Temporal rate-bin refinement ($\Delta t \to \Delta t/2 \to \Delta t/4$) | $p_{\text{obs}} \ge 1.0$ across time-dependent bins | Discretization artifacts masquerading as empirical evolutionary signals |
+| `audit_state_space_truncation_invariance` | Truncation ceiling refinement ($K \to 2K \to 4K$) | Monotonic settling of observables as $K \to \infty$ | Unbounded null control probability mass reflecting at upper ceiling |
