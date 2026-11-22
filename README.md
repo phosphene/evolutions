@@ -145,6 +145,6 @@ All mathematical primitives follow strict Design for Testability (DFT) contracts
 - **[Quantitative Derivatives & Financial CTMC Modeling](docs/FINANCIAL_CTMC_AND_DERIVATIVES_MODELING.md):** Theoretical grounding in local volatility term structure calibration, tenor bootstrapping bias resolution, and sensitivity invariance.
 - **[Naming Principles as Applied](docs/NAMING_PRINCIPLES_AS_APPLIED.md):** Architectural realization of Frege’s Sense vs. Referent, Hickey’s namespace economy, and procedural verb elimination.
 - **[Literate Specification](docs/LITERATE_SPECIFICATION.md):** Formal axiomatic decomposition and failure-mode mappings.
-- **[Mathematical Genealogy & Numerical Compromises](docs/NUMERICAL_GENEALOGY_AND_COMPROMISES.md):** Derivations from Kato and Tanabe down to IEEE-754 silicon.
+- **[Mathematical Genealogy & Numerical Discretization Tensions](docs/NUMERICAL_GENEALOGY_AND_COMPROMISES.md):** Derivations from Kato and Tanabe down to discrete floating-point numerical methods.
 - **[Non-Autonomous Magnus Foundations](docs/NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md):** Lie-algebraic theory, commutator conservation proofs, and convergence radii.
 - **[Local Python Numerical Genealogy](docs/PYTHON_NUMERICAL_GENEALOGY.md):** Ecosystem survey across SciPy, QuTiP, PyEMMA, and Diffrax.

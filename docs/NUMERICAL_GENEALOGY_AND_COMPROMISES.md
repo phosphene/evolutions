@@ -1,4 +1,4 @@
-# Mathematical Genealogy, Numerical Compromises, and Tractable Units of Reason in `phosphene-evolutions`
+# Mathematical Genealogy, Numerical Discretization Tensions, and Canonical Best Efforts in `phosphene-evolutions`
 
 ## 1. The Core Abstraction: Two-Parameter Evolution Families on Banach Spaces
 
@@ -21,50 +21,77 @@ $$U^*(s, r) \circ U^*(r, t) = U^*(s, t) \quad (s \le r \le t)$$
 
 ---
 
-## 2. Inevitable Numerical Compromises: Algebra vs. Silicon
+## 2. Inevitable Numerical Tensions: Continuous Algebra vs. Discrete Discretization
 
-The continuous functional calculus of operators on Banach spaces assumes infinite precision, exact continuum limits, and unconstrained dimensional scaling. When implemented on finite-precision floating-point hardware (IEEE 754 arithmetic), pure mathematical algebra collides with physical constraints. 
+The continuous functional calculus of operators on Banach spaces assumes infinite precision, exact continuum limits, and unconstrained dimensional scaling. When realized in discrete numerical algorithms under floating-point arithmetic (IEEE 754 precision), continuous operator algebra encounters intrinsic structural boundaries.
 
-To maintain scientific integrity, a numerical library must explicitly document **where, why, and how numerical methods compromise pure algebraic purity**, and ensure that every resolution is a direct reproduction of an established, peer-reviewed technique from the literature.
+In the real world, **every discrete numerical scheme is an explicit compromise between competing mathematical virtues**. We do not pretend to "solve" these tensions; instead, scientific integrity requires making the tensions, structural trade-offs, and failure modes fully legible, and collecting the canonical best efforts from the literature at balanced implementation.
 
-### Compromise 1: Countably Infinite State Space vs. Finite Truncation
-* **The Mathematics:** In continuous-time Markov jump processes (e.g. population lineages, queues, chemical master equations), the state space is countably infinite: $X = \ell^1(\mathbb{N}_0)$. The infinitesimal generator $\mathbf{Q}$ is infinite-dimensional.
-* **The Silicon Reality:** Arrays in computer memory must be truncated to a finite dimension $K < \infty$.
-* **The Compromise:** Naive truncation sets $q_{ij} = 0$ for $j > K$, which causes probability mass arriving at state $K$ to vanish into an unmodeled absorbing sink:
+---
+
+### Tension 1: Countably Infinite State Space vs. Finite Spatial Truncation
+
+* **The Continuous Operator:** 
+  In continuous-time Markov jump processes (birth-death chains, queuing networks, chemical master equations), state space is countably infinite: $X = \ell^1(\mathbb{N}_0)$. The infinitesimal generator $\mathbf{Q}$ is infinite-dimensional.
+* **The Discretization Challenge:** 
+  Discrete array representations must truncate state space to a finite ceiling dimension $K < \infty$. Naive truncation sets $q_{ij} = 0$ for $j > K$, causing probability mass arriving at state $K$ to permanently leak into an unmodeled absorbing sink:
   $$\sum_{j=0}^K q_{Kj} = -q_{K, K+1} < 0 \implies \frac{d}{dt} \sum_{i=0}^K p_i(t) < 0$$
-* **Established Resolution in the Literature (State Truncation & Boundary Reflection):**
-  - *Literature Precursor:* Tweedie (1967) *Ann. Math. Statist.*; Seneta (1968) *Proc. Cambridge Philos. Soc.*; Gibson & Seneta (1987) *J. Appl. Probab.*; Munsky & Khammash (2006) *J. Chem. Phys.* (Finite State Projection).
-  - *Mechanism:* Enforce reflecting boundary conditions at truncation threshold $K$. The forward exit rate $q_{K, K+1}$ is folded onto the diagonal:
+* **Canonical Best Efforts at Balanced Implementation:**
+  - *Reflecting Boundary Closure (Tweedie 1967; Seneta 1968; Gibson & Seneta 1987):* Enforce reflecting boundary conditions at threshold $K$. The forward exit rate $q_{K, K+1}$ is folded onto the diagonal:
     $$q_{KK} = -\sum_{j < K} q_{Kj} \implies \sum_{j=0}^K q_{ij} \equiv 0$$
-  - *Trade-off:* State excursions above $K$ are reflected rather than lost, preserving probability conservation ($\sum p_i = 1.0$) and preventing floating-point renormalization drift, at the cost of truncation error for mass reaching $K$.
+    *Trade-off:* State excursions above $K$ are reflected back rather than lost, preserving probability conservation ($\sum p_i = 1.0$) and preventing floating-point renormalization drift, at the cost of artificial reflection error for probability mass that would physically traverse beyond $K$.
+  - *Finite State Projection (Munsky & Khammash 2006):* Maintains an explicit sink state to measure the accumulated truncation error bound directly.
+  - *Balanced Implementation in `phosphene-evolutions`:* We implement reflecting boundaries in `zero_flux_birth_death_generator` and couple it with `state_truncation_invariance(dim_low, dim_high)` to certify that boundary reflection error remains below precision thresholds ($< 10^{-12}$).
 
-### Compromise 2: Padé Rational Approximants vs. Positivity Preservation
-* **The Mathematics:** The operator exponential $T(\tau) = \exp(\tau \mathbf{Q}) = \sum_{k=0}^\infty \frac{(\tau \mathbf{Q})^k}{k!}$ of a Metzler matrix ($\mathbf{Q}$ with $q_{ij} \ge 0$ for $i \neq j$) is a positive operator:
+---
+
+### Tension 2: Rational Padé Approximants vs. Positivity Preservation
+
+* **The Continuous Operator:** 
+  The operator exponential $T(\tau) = \exp(\tau \mathbf{Q})$ of a Metzler matrix ($\mathbf{Q}$ with $q_{ij} \ge 0$ for $i \neq j$) is a strictly positive operator:
   $$p \ge 0 \implies \exp(\tau \mathbf{Q}) p \ge 0 \quad \forall \tau \ge 0$$
-* **The Silicon Reality:** Direct Taylor summation is numerically unstable for stiff operators (Moler & Van Loan 1978, 2003). Modern scientific runtimes (including `scipy.linalg.expm`) utilize diagonal $[m/m]$ Padé rational approximants coupled with scaling and squaring (Al-Mohy & Higham 2009):
+* **The Discretization Challenge:** 
+  Direct polynomial Taylor summation is unstable for stiff operators (Moler & Van Loan 1978, 2003). Standard scientific runtimes rely on diagonal $[m/m]$ Padé rational approximants coupled with scaling and squaring (Al-Mohy & Higham 2009):
   $$\exp(\tau \mathbf{Q}) \approx \left[ R_{mm}\left( 2^{-s} \tau \mathbf{Q} \right) \right]^{2^s}, \quad R_{mm}(Z) = [D_{mm}(Z)]^{-1} N_{mm}(Z)$$
-* **The Compromise:** Padé rational functions $R_{mm}(Z)$ contain negative coefficients in their partial fraction expansions. Consequently, floating-point subtraction and cancellation errors produce subnormal negative probabilities ($p_i \approx -10^{-16}$ to $-10^{-14}$) in empty or rarely visited states.
-* **Established Resolution in the Literature (Euclidean Simplex Projection):**
-  - *Literature Precursor:* Michelot (1986) *J. Optim. Theory Appl.*; Duchi et al. (2008) *ICML*; Wang & Carreira-Perpiñán (2013) *ICML*.
-  - *Mechanism:* Solve the exact Euclidean projection onto the standard probability simplex $\Delta^K$:
+  However, Padé rational fractions $R_{mm}(Z)$ contain negative roots in their partial fraction expansions. Floating-point subtraction and cancellation produce subnormal negative probabilities ($p_i \approx -10^{-16}$ to $-10^{-14}$) in empty or rarely visited states.
+* **Canonical Best Efforts at Balanced Implementation:**
+  - *Heuristic Clipping (The Anti-Pattern):* Ad-hoc clamping (`p = np.maximum(p, 0); p /= p.sum()`) introduces uncontrolled directional bias and distorts probability gradients.
+  - *Exact Euclidean Simplex Projection (Michelot 1986; Duchi et al. 2008; Wang & Carreira-Perpiñán 2013):* Solves the minimum $L_2$ distortion problem:
     $$\min_{p \in \mathbb{R}^K} \frac{1}{2} \|p - v\|_2^2 \quad \text{subject to} \quad p \ge 0, \; \sum_{i=1}^K p_i = 1$$
-    By Karush-Kuhn-Tucker (KKT) conditions, $p_i = \max(v_i - \theta, 0)$ where $\theta$ is found in $O(K \log K)$ via sorting.
-  - *Trade-off:* Replaces unprincipled ad-hoc clamping (`p = np.maximum(p, 0); p /= p.sum()`) with minimum $L_2$ distortion, strictly setting subnormal negatives to zero while conserving unit mass.
+    By Karush-Kuhn-Tucker (KKT) conditions, $p_i = \max(v_i - \theta, 0)$ where $\theta$ is found in $\mathcal{O}(K \log K)$ via threshold sorting.
+  - *Balanced Implementation in `phosphene-evolutions`:* `project_to_simplex` restores geometric closure on $\Delta^K$ with minimal distortion while isolating absorbing boundaries (holding absorbing default states $p_0$ invariant).
 
-### Compromise 3: The Stiffness Barrier vs. Time Discretization (Padé vs. Uniformization)
-* **The Mathematics:** Both Padé exponential integration and Poisson uniformization represent the exact same continuous semigroup operator $T(\tau) = \exp(\tau \mathbf{Q})$.
-* **The Silicon Reality:**
-  1. *Stiffness Ratio:* Continuous systems frequently feature disparate timescales. The spectral stiffness ratio $S_R = \frac{|\operatorname{Re}(\omega_{\max})|}{|\operatorname{Re}(\omega_{\min \neq 0})|}$ can exceed $10^6$.
-  2. *Poisson Uniformization (Jensen 1953; Grassmann 1977; Gross & Miller 1984):* Expands flow into a Poisson sum of discrete transitions:
-     $$P(t + \tau) = \sum_{j=0}^\infty e^{-\gamma \tau} \frac{(\gamma \tau)^j}{j!} \mathbf{P}_{\text{disc}}^j P(t), \quad \gamma = \max_i |q_{ii}|, \quad \mathbf{P}_{\text{disc}} = \mathbf{I} + \frac{1}{\gamma} \mathbf{Q}^T$$
-     *Advantage:* $\mathbf{P}_{\text{disc}}$ and Poisson weights are strictly non-negative. Negative probabilities cannot occur; simplex projection is unnecessary.
-     *Failure Mode:* When $\alpha = \gamma \tau \gg 1$ (high stiffness or long duration), the Poisson expansion requires $J \sim \mathcal{O}(\gamma \tau)$ matrix-vector multiplications, rendering computation slow or causing floating-point underflow in Poisson weight accumulation.
-  3. *Padé Scaling-and-Squaring (Al-Mohy & Higham 2009):* Scales matrix norm $\|2^{-s} \tau \mathbf{Q}\| \le \theta_m$, requiring only $\mathcal{O}(\log_2(\gamma \tau))$ matrix squarings.
-     *Advantage:* Unconditional A-stability and rapid evaluation for stiff operators across large $\tau$.
-     *Failure Mode:* Roundoff negativity requires geometric simplex projection.
-* **Established Resolution in the Literature:**
-  - *Literature Precursor:* Stewart (1994) *Introduction to the Numerical Solution of Markov Chains*, Princeton University Press; Sidje & Stewart (1999) *Comput. Statist. Data Anal.*
-  - *Mechanism:* Audit the operator's spectral stiffness ($S_R$) and the dimensionless product $\alpha = \gamma \tau$. Use Poisson uniformization when $\alpha$ is moderate and strict entrywise positivity is paramount; use Padé scaling-and-squaring with Euclidean simplex projection when stiffness $\alpha \gg 1$ makes uniformization computationally intractable.
+---
+
+### Tension 3: Spectral Stiffness vs. Time Discretization (Padé vs. Uniformization)
+
+* **The Continuous Operator:** 
+  Both Poisson uniformization (randomization) and Padé scaling-and-squaring compute the exact same continuous semigroup operator $T(\tau) = \exp(\tau \mathbf{Q})$.
+* **The Discretization Challenge:** 
+  The spectral stiffness ratio $S_R = \frac{|\operatorname{Re}(\omega_{\max})|}{|\operatorname{Re}(\omega_{\min \neq 0})|}$ can exceed $10^6$.
+  - *Poisson Uniformization (Jensen 1953; Grassmann 1977; Gross & Miller 1984):* Expands flow into a Poisson sum of discrete transitions:
+    $$P(t + \tau) = \sum_{j=0}^\infty e^{-\gamma \tau} \frac{(\gamma \tau)^j}{j!} \mathbf{P}_{\text{disc}}^j P(t), \quad \gamma = \max_i |q_{ii}|, \quad \mathbf{P}_{\text{disc}} = \mathbf{I} + \frac{1}{\gamma} \mathbf{Q}^T$$
+    *Advantage:* $\mathbf{P}_{\text{disc}}$ and Poisson weights are strictly non-negative; negative probabilities cannot occur.
+    *Trade-off:* When $\alpha = \gamma \tau \gg 1$, naive evaluation requires $\mathcal{O}(\gamma \tau)$ matrix multiplications, and Poisson weights underflow in double precision ($e^{-\alpha} = 0.0$ for $\alpha > 709$).
+  - *Padé Scaling-and-Squaring (Al-Mohy & Higham 2009):* Unconditionally A-stable with $\mathcal{O}(\log_2(\gamma \tau))$ complexity, but suffers from subnormal positivity leakage.
+* **Canonical Best Efforts at Balanced Implementation:**
+  - *Mode-Centered Poisson Summation (Fox & Glynn 1988):* Centers Poisson evaluation at the mode $m = \lfloor \alpha \rfloor$ using log-space recurrence, scaling the computable horizon up to $\alpha \approx 10^5$ without underflow.
+  - *Balanced Implementation in `phosphene-evolutions`:* We provide both: `fox_glynn_uniformization` for long horizons where positivity is non-negotiable, and `pade_exponential` for dense stiff transitions, using `spectral_stiffness` as the pre-flight diagnostic router.
+
+---
+
+### Tension 4: Non-Autonomous Commutator Splitting vs. Step Complexity (Magnus Expansions)
+
+* **The Continuous Operator:** 
+  In non-autonomous master equations $\dot{p}(t) = A(t)^\top p(t)$, generators at different times do not commute ($[A(t_1), A(t_2)] \neq \mathbf{0}$).
+* **The Discretization Challenge:** 
+  Standard operator splitting (e.g. Strang splitting or piecewise-constant autonomous stepping across discrete tenors) incurs $\mathcal{O}(\Delta T)$ or $\mathcal{O}(\Delta T^2)$ non-commutativity errors. Higher-order Magnus series (Magnus 1954; Blanes et al. 2009) capture the Lie algebra via nested commutators:
+  $$\Omega(s, t) = \int_s^t A(\tau) d\tau - \frac{1}{2} \int_s^t \left[ \int_s^\tau A(\sigma) d\sigma, A(\tau) \right] d\tau + \dots$$
+  However, each higher order requires evaluating additional matrix commutators $[A, B]$ and high-degree Gauss-Legendre quadrature points, rapidly increasing computational cost and narrowing the Magnus convergence radius (Moan 2002; Casas 2007).
+* **Canonical Best Efforts at Balanced Implementation:**
+  - *Midpoint Magnus-2 (Order 2):* A single generator evaluation $A(t_{1/2})$ per step. Captures average drift with $\mathcal{O}(\Delta T^2)$ local error, completely avoiding matrix commutators.
+  - *2-Point Gauss-Legendre Magnus-4 (Order 4):* Two evaluations $A(c_1), A(c_2)$ and exactly **one** commutator $[M_2, M_1]$. Strikes the optimal balance: achieves 4th-order local accuracy while preserving zero row/column-sum conservation identically ($\mathbf{1}^\top [M_2, M_1] \equiv \mathbf{0}^\top$).
+  - *Balanced Implementation in `phosphene-evolutions`:* `magnus2` and `magnus4` are provided as transparent options, documented with their exact convergence boundaries and commutator costs.
 
 ---
 
@@ -87,17 +114,27 @@ Moler & Van Loan (1978, 2003) ──► "19 Dubious Ways to Compute the Exponent
 Higham (2005) / Al-Mohy & Higham (2009)          Jensen (1953) / Grassmann (1977)
 Norm-optimal [13/13] Padé approximant            Non-negative stochastic series expansion
                      │                                              │
+                     │                                              ▼
+                     │                                   [Underflow-Safe Fox-Glynn]
+                     │                                   Fox & Glynn (1988)
+                     │                                   Mode-centered Poisson summation
+                     │                                              │
                      ▼                                              │
 [Simplex Geometry Restoration]                                     │
 Michelot (1986) / Duchi et al. (2008) /                            │
 Wang & Carreira-Perpiñán (2013)                                    │
 Exact Euclidean projection onto Δᴷ                                  │
                      │                                              │
-                     └──────────────────────┬───────────────────────┘
-                                            ▼
-                           [Verification & Validation]
-                           Richardson (1911) / Roache (1998)
-                           Step-halving mesh convergence audit (p_obs)
+                     ├──────────────────────────────────────────────┘
+                     ▼
+[Non-Autonomous Magnus Integrators]
+Magnus (1954) / Blanes et al. (2009)
+Lie-algebraic commutator-preserving integrators (Order 2, Order 4)
+                     │
+                     ▼
+[Numerical Verification & Validation]
+Richardson (1911) / Roache (1998)
+Step-halving mesh convergence audit (p_obs)
 ```
 
 1. **Evolution Families & Semigroups:**
@@ -124,6 +161,11 @@ Exact Euclidean projection onto Δᴷ                                  │
    - Michelot, C. (1986). *A finite algorithm for finding the projection of a point onto the canonical simplex of R^n*. Journal of Optimization Theory and Applications, 50(1), 195-200.
    - Duchi, J., Shalev-Shwartz, S., Singer, Y., & Chandra, T. (2008). *Efficient projections onto the l1-ball for predictors in large dimensions*. Proceedings of the 25th ICML, 272-279.
    - Wang, W., & Carreira-Perpiñán, M. Á. (2013). *Projection onto the probability simplex: An efficient algorithm with a simple proof, and an application*. arXiv:1309.1541.
-6. **Numerical Verification & Validation:**
+6. **Lie-Algebraic Magnus Integrators:**
+   - Magnus, W. (1954). *On the exponential solution of differential equations for a linear operator*. Communications on Pure and Applied Mathematics, 7(4), 649-673.
+   - Moan, P. C. (2002). *Efficient Approximation of Sturm-Liouville Problems Using Lie-Group Methods*. PhD Thesis, University of Cambridge.
+   - Casas, F. (2007). *Sufficient conditions for the convergence of the Magnus series*. Journal of Physics A: Mathematical and Theoretical, 40(50), 15001.
+   - Blanes, S., Casas, F., Oteo, J. A., & Ros, J. (2009). *The Magnus expansion and some of its applications*. Physics Reports, 470(5-6), 151-238.
+7. **Numerical Verification & Validation:**
    - Richardson, L. F. (1911). *The approximate arithmetical solution by finite differences of physical problems involving differential equations*. Philosophical Transactions of the Royal Society of London. Series A, 210, 307-357.
    - Roache, P. J. (1998). *Verification and Validation in Scientific Computing*. Hermosa Publishers, Albuquerque, NM.

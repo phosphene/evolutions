@@ -12,7 +12,7 @@ All mathematical primitives, numerical compromises, and Python implementations f
    - The three-tier epistemic progression of the Phosphene platform:
      - **Tier 1 (Design for Testability):** Purity boundaries, zero I/O, immutable buffers, and isolated units of reason.
      - **Tier 2 (Design by Falsifiability):** Dual-boundary falsifiability, null controls, and Richardson grid convergence checks.
-     - **Tier 3 (Design by Calibration Curve Fitting):** Decoupling continuous parameter calibration from silicon time-stepping grids; resolving non-commuting generator bias $[A(t_1), A(t_2)] \neq \mathbf{0}$ via Lie-algebraic Magnus expansions.
+     - **Tier 3 (Design by Calibration Curve Fitting):** Decoupling continuous parameter calibration from discrete time-stepping grids; resolving non-commuting generator bias $[A(t_1), A(t_2)] \neq \mathbf{0}$ via Lie-algebraic Magnus expansions.
 
 2. **[Quantitative Derivatives & Financial CTMC Modeling](FINANCIAL_CTMC_AND_DERIVATIVES_MODELING.md)**
    - Applied foundation grounding `phosphene-evolutions` in production quantitative finance and derivatives risk engines.
@@ -40,7 +40,12 @@ All mathematical primitives, numerical compromises, and Python implementations f
    - Exact Euclidean simplex projection vs. ad-hoc clipping (Wang & Carreira-Perpiñán 2013).
    - Poisson uniformization vs. scaling-and-squaring (Jensen 1953; Grassmann 1977; Fox & Glynn 1988).
    - Diagonal similarity symmetrization of birth-death chains (Keilson 1979; Anderson 1991).
-   - Precursor genealogy mapping functional analysis down to IEEE 754 silicon.
+   - Precursor genealogy mapping functional analysis down to floating-point numerical methods.
+   - Four fundamental discretization tensions and their canonical literature responses:
+     - Spatial truncation: Countable infinity vs. reflecting boundary closure (Tweedie 1967; Seneta 1968).
+     - Rational approximation: Padé A-stability vs. Euclidean simplex projection (Wang & Carreira-Perpiñán 2013).
+     - Stiffness vs. duration: Mode-centered Poisson uniformization (Fox & Glynn 1988) vs. Padé scaling-and-squaring.
+     - Non-autonomous flow: Commutator splitting error vs. optimal 2-point Gauss Magnus-4 (Blanes et al. 2009).
 
 6. **[Non-Autonomous Evolution Families & Magnus Integrators](NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md)**
    - Mathematical formulation of non-autonomous master equations $\dot{p}(t) = A(t)^T p(t)$ on Banach spaces.

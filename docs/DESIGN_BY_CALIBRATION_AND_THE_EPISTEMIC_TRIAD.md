@@ -33,7 +33,7 @@ In `phosphene-evolutions`, mathematical and numerical engineering progresses thr
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │             TIER 3: DESIGN BY CALIBRATION CURVE FITTING (DBC)               │
 │   • Numerical implementation of continuous algebra level                    │
-│   • Decoupling continuous market/nature calibration from silicon stepping   │
+│   • Decoupling continuous market/nature calibration from discrete time grids│
 │   • Lie-algebraic Magnus expansion for non-commuting generators [A(t₁),A(t₂)]│
 │   • Verified in: Derivative Greek invariance (vanna/volga), cross-tenors    │
 └─────────────────────────────────────────────────────────────────────────────┘
