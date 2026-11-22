@@ -15,7 +15,7 @@ Mathematical Formulation:
     The state probability vector advances as:
         p(tau) = T(tau) @ p(0)
 
-Silicon Compromises & Numerical Realities:
+Numerical Discretization & Mathematical Invariants:
     Padé approximation evaluated via floating-point arithmetic occasionally introduces
     subnormal negative entries (p_i ~ -1e-16) due to rational truncation and machine epsilon.
     pade_exponential couples scipy's Padé evaluation with Wang & Carreira-Perpiñán exact

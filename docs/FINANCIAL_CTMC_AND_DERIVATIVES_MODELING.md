@@ -34,7 +34,7 @@ Treating non-commuting term structures as locally autonomous introduces severe n
 
 ## 3. Decoupling Continuous Calibration from Numerical Propagation
 
-`phosphene-evolutions` decouples continuous parameter curve fitting from silicon time-stepping by framing calibration through the `TimeDependentMetzlerGenerator` and `MagnusEvolutionFamily` architecture:
+`phosphene-evolutions` decouples continuous parameter curve fitting from discrete time-stepping grids by framing calibration through the `TimeDependentMetzlerGenerator` and `MagnusEvolutionFamily` architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐

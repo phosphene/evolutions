@@ -24,7 +24,7 @@ Mathematical Formulation:
            M_1 = A(s + c_1 * h)^T, M_2 = A(s + c_2 * h)^T
            Omega^{[4]}(s, h) = (h/2) * (M_1 + M_2) + (sqrt(3)*h^2 / 12) * [M_2, M_1] + O(h^5)
 
-Silicon Compromises & Numerical Invariants:
+Numerical Discretization & Mathematical Invariants:
     1. Zero Column Sum Preservation:
        Both the midpoint and Gauss-Legendre Magnus generators Omega satisfy 1^T Omega == 0^T.
     2. Simplex Projection:

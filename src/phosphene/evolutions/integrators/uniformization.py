@@ -19,7 +19,7 @@ Mathematical Formulation:
         P_disc = I + (1 / gamma) * Q^T  (discrete-time transition probability matrix)
         alpha = gamma * tau            (expected Poisson events over interval)
 
-Silicon Compromises & Numerical Realities:
+Numerical Discretization & Mathematical Invariants:
     1. Zero Negative Drift: Because P_disc has strictly non-negative entries and row/column sums
        equal to 1, evaluating the Poisson mixture involves only non-negative matrix-vector
        products. Zero negative probability mass is created by construction.

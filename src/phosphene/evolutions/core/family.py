@@ -22,11 +22,11 @@ Dual Evolution & Observables:
     which reverses time ordering:
         U*(s, r) o U*(r, t) = U*(s, t)   for s <= r <= t.
 
-Silicon Compromises & Numerical Realities:
+Numerical Discretization & Finite Precision:
     In infinite dimensions, U(t, s) acts on function spaces (e.g. L^1, L^2, C_0).
-    On floating-point hardware, X is projected into a finite-dimensional subspace R^K,
+    In numerical discretization, X is projected into a finite-dimensional subspace R^K,
     where U(t, s) is represented as a matrix. The semi-flow composition law
-    U(t, r) @ U(r, s) = U(t, s) is satisfied up to floating-point precision:
+    U(t, r) @ U(r, s) = U(t, s) is satisfied up to floating-point rounding precision:
         || U(t, s) - prod_{k=1}^m U(t_k, t_{k-1}) || <= O(m * eps_mach).
 """
 

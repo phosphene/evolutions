@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Philosophy of Indirection
 
-In scientific computation and mathematical software, formalization is primarily an act of naming. A name establishes an essential boundary of **indirection**—the deliberate separation between *what* a mathematical entity represents (its invariant concept) and *how* it is realized in silicon (its transient hardware data structure).
+In scientific computation and mathematical software, formalization is primarily an act of naming. A name establishes an essential boundary of **indirection**—the deliberate separation between *what* a mathematical entity represents (its invariant concept) and *how* it is realized in software (its transient data structures and numerical routines).
 
 When naming disciplines fail, mathematical libraries degrade into two failure modes:
 1. **Procedural Action Verb Obfuscation:** Dressing pure algebraic operators in operational imperative verbs (`calculate_`, `compute_`, `construct_`, `handle_`), obscuring that pure mathematical transformations are immutable *values* rather than stateful background chores.
@@ -35,7 +35,7 @@ Following Frege’s semantic distinction, every symbol in `phosphene-evolutions`
                      ▼                                         ▼
     ┌─────────────────────────────────┐       ┌─────────────────────────────────┐
     │              SENSE              │       │             REFERENT            │
-    │  Invariant conceptual meaning:  │       │  Transient silicon realization: │
+    │  Invariant conceptual meaning:  │       │  Transient software realization:│
     │  Exact minimum Euclidean L²     │       │  Wang & Carreira-Perpiñán       │
     │  projection onto standard       │       │  O(K log K) sort & threshold    │
     │  probability simplex Δᴷ.        │       │  or O(K) median-of-medians.     │

@@ -29,7 +29,7 @@ Mathematical Formulation:
             d/dt p(t) = Q_fwd p(t) = Q_row^T p(t)
         whose solution is p(t) = exp(t * Q_row^T) p(0).
 
-Silicon Compromises & Numerical Realities:
+Numerical Discretization & Mathematical Invariants:
     1. Zero-Flux Truncation: Infinite state spaces (e.g. carrying capacity K -> inf) must
        be truncated to a finite dimension K. zero_flux_birth_death_generator enforces exact zero-flux
        closure at carrying capacity ceiling K, preventing artificial probability mass leakage.
