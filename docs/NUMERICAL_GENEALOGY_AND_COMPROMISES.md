@@ -113,9 +113,12 @@ Exact Euclidean projection onto Δᴷ                                  │
    - Jensen, A. (1953). *Markoff chains as an aid in the study of Markoff processes*. Skandinavisk Aktuarietidskrift, 36, 87-91.
    - Grassmann, W. K. (1977). *Transient solutions in Markovian queues*. European Journal of Operational Research, 1(6), 396-402.
    - Gross, D., & Miller, D. R. (1984). *The randomization technique as a modeling tool and solution procedure for transient Markov processes*. Operations Research, 32(2), 343-361.
-4. **State Truncation & Finite State Projection:**
+   - Fox, B. L., & Glynn, P. W. (1988). *Computing Poisson probabilities*. Communications of the ACM, 31(4), 440-445.
+4. **State Truncation & Detailed Balance Symmetrization:**
    - Tweedie, R. L. (1967). *Truncation approximations for countably infinite Markov chains*. Ann. Math. Statist.
    - Seneta, E. (1968). *On the finite approximations to infinite non-negative matrices*. Proc. Cambridge Philos. Soc., 64(2), 333-338.
+   - Keilson, J. (1979). *Markov Chain Models—Rarity and Exponentiality*. Springer Applied Mathematical Sciences.
+   - Anderson, W. J. (1991). *Continuous-Time Markov Chains: An Approach Using Infinitesimal Generators*. Springer Series in Statistics.
    - Munsky, B., & Khammash, M. (2006). *The finite state projection algorithm for the numerical solution of the chemical master equation*. J. Chem. Phys., 124(4), 044104.
 5. **Euclidean Simplex Projection:**
    - Michelot, C. (1986). *A finite algorithm for finding the projection of a point onto the canonical simplex of R^n*. Journal of Optimization Theory and Applications, 50(1), 195-200.
