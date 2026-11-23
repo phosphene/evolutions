@@ -1,22 +1,9 @@
 """Pure Lie algebra operations on Banach space operators.
 
 Genealogy:
-    - Lie Groups & Lie Algebras: Lie (1888) Theorie der Transformationsgruppen;
-      Hall (2015) Lie Groups, Lie Algebras, and Representations.
-    - Magnus Expansions: Magnus (1954) Comm. Pure Appl. Math.;
-      Blanes et al. (2009) Physics Reports.
-
-Mathematical Invariants:
-    1. Bilinearity and Antisymmetry:
-       [A, B] = -[B, A]
-       [A, A] = 0
-    2. Jacobi Identity:
-       [A, [B, C]] + [B, [C, A]] + [C, [A, B]] = 0
-    3. Zero Row/Column Sum Invariance:
-       If row_sums(A) == 0 and row_sums(B) == 0, then:
-           [A, B] 1 = A(B 1) - B(A 1) = A(0) - B(0) = 0
-       Similarly, if column_sums(M_1) == 0 and column_sums(M_2) == 0 (where M = A^T), then:
-           1^T [M_2, M_1] = 0^T.
+    Rung: 1 (Read-only 2D ``numpy`` bilinear operator).
+    Literature: Lie (1888); Hall (2015) Lie Groups, Lie Algebras, and Representations;
+        Magnus (1954) Comm. Pure Appl. Math.; Blanes et al. (2009) Physics Reports.
 """
 
 from __future__ import annotations
@@ -25,27 +12,41 @@ import numpy as np
 
 
 def commutator(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Compute the Lie bracket / commutator [A, B] = A @ B - B @ A.
+    """Lie bracket / commutator [A, B] = A @ B - B @ A on square operators.
 
-    Args:
-        a: Real or complex square matrix in R^{K x K}.
-        b: Real or complex square matrix in R^{K x K}.
+    Genealogy:
+        Rung: 1 (Pure bilinear operator returning read-only float64 array).
+        Literature: Lie (1888); Blanes et al. (2009).
 
-    Returns:
-        Commutator matrix [A, B] in R^{K x K}.
+    Objective:
+        [A, B] = A B - B A
 
-    Raises:
-        ValueError: If matrices are not square 2D arrays of identical dimensions.
+    Dimensions:
+        a, b: Finite square 2D arrays of identical shape (K, K).
+        Returns: Read-only (K, K) array [A, B].
 
-    Numerical Invariants:
-        If both a and b have zero column sums (i.e. 1^T a = 0 and 1^T b = 0),
-        then 1^T [a, b] = 0 identically up to machine precision.
+    Boundary & Falsification Semantics:
+        - Non-2D, non-square, mismatched shapes, or non-finite entries -> raises ValueError.
+
+    Invariants & Oracles:
+        - Antisymmetry: [A, B] == -[B, A] and [A, A] == 0.
+        - Jacobi identity: [A, [B, C]] + [B, [C, A]] + [C, [A, B]] == 0.
+        - Zero-sum closure: if A 1 = 0 and B 1 = 0, then [A, B] 1 = 0 identically.
     """
-    if a.ndim != 2 or a.shape[0] != a.shape[1]:
-        raise ValueError(f"Matrix A must be square 2D, got shape {a.shape}")
-    if b.ndim != 2 or b.shape[0] != b.shape[1]:
-        raise ValueError(f"Matrix B must be square 2D, got shape {b.shape}")
-    if a.shape != b.shape:
-        raise ValueError(f"Matrix shape mismatch: {a.shape} vs {b.shape}")
+    a_arr = np.asarray(a)
+    b_arr = np.asarray(b)
+    if a_arr.ndim != 2 or a_arr.shape[0] != a_arr.shape[1]:
+        raise ValueError(f"Matrix A must be square 2D, got shape {a_arr.shape}")
+    if b_arr.ndim != 2 or b_arr.shape[0] != b_arr.shape[1]:
+        raise ValueError(f"Matrix B must be square 2D, got shape {b_arr.shape}")
+    if a_arr.shape != b_arr.shape:
+        raise ValueError(f"Matrix shape mismatch: {a_arr.shape} vs {b_arr.shape}")
+    if not (np.all(np.isfinite(a_arr)) and np.all(np.isfinite(b_arr))):
+        raise ValueError("Commutator operands must contain only finite values")
 
-    return a @ b - b @ a
+    out = a_arr @ b_arr - b_arr @ a_arr
+    out.flags.writeable = False
+    return out
+
+
+__all__ = ["commutator"]

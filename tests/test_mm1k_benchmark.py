@@ -79,8 +79,8 @@ def test_mm1k_stiffness_and_bounds():
 
     audit = spectral_stiffness(gen)
 
-    assert audit["fastest_mode_hz"] > 100.0
-    assert audit["stiffness_ratio"] > 1.0
-    assert audit["cfl_critical_dt"] < 0.05
+    assert audit.fastest_decay_rate > 100.0
+    assert audit.stiffness_ratio > 1.0
+    assert audit.cfl_critical_dt < 0.05
     # Gershgorin bound must be conservative: dt_gershgorin <= dt_cfl
-    assert audit["gershgorin_cfl_dt"] <= audit["cfl_critical_dt"] + 1e-12
+    assert audit.gershgorin_cfl_dt <= audit.cfl_critical_dt + 1e-12

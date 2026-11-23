@@ -110,5 +110,5 @@ def test_financial_sensitivity_invariance_under_grid_refinement():
         return magnus4(gen, p0, 0.0, t_maturity, steps=steps)
 
     audit = temporal_mesh_invariance(solver_at_dt, base_dt=0.2)
-    assert audit["converged"] == 1.0
-    assert audit["order_of_convergence"] >= 3.5  # Magnus-4 convergence order
+    assert audit.converged is True
+    assert audit.order_of_convergence >= 3.5  # Magnus-4 convergence order

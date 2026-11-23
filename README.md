@@ -53,36 +53,37 @@ The computational kernel is decomposed into isolated, immutable **units of reaso
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    2. Geometry of the State Space (Simplex)                 │
-│   • project_to_simplex: Exact O(K log K) Euclidean projection onto Δᴷ       │
+│   • simplex_projection: Exact O(K log K) Euclidean projection onto Δᴷ       │
 │   • Boundary isolation: Holds absorbing default state p₀ invariant          │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         3. Infinitesimal Generators                         │
-│   • ConservativeMetzlerGenerator: Immutable rate matrix buffer              │
+│   • MetzlerGenerator: Base dissipative / sub-Markovian generator (Q1 <= 0)  │
+│   • ConservativeMetzlerGenerator: Strictly conservative (Q1 == 0, frozen)   │
 │   • zero_flux_birth_death_generator: Zero forward flux at carrying ceiling K │
-│   • spectral_stiffness: Symmetrized tridiagonal spectrum & Gershgorin CFL   │
+│   • spectral_stiffness -> SpectralStiffness (typed, unit-agnostic)          │
 │   • TimeDependentMetzlerGenerator: Validated callable t ↦ A(t)              │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        4. Propagators & Integrators                         │
-│   • pade_exponential: [13/13] Padé scaling & squaring (Al-Mohy & Higham)    │
-│   • jensen_uniformization: Poisson mixture with zero negative drift         │
-│   • fox_glynn_uniformization: Mode-centered Poisson underflow-safe sum      │
-│   • magnus2: Midpoint Gauss-Legendre Magnus integrator (Order 2)            │
-│   • magnus4: 2-point Gauss-Legendre Magnus integrator (Order 4)             │
+│   • fox_glynn_weights -> PoissonWindow (Rung 0/1 mode-centered window)      │
+│   • pade_exponential / pade_result -> PropagationResult (raw vs projected)  │
+│   • jensen_uniformization / jensen_result: Zero negative drift              │
+│   • fox_glynn_uniformization / fox_glynn_result: O(log α + √α) safe sum     │
+│   • magnus2 / magnus4 (+ *_result): Order 2 & 4 Lie-algebraic integrators   │
 │   • MagnusEvolutionFamily: Concrete two-parameter non-autonomous family     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        5. Verification & Validation                         │
-│   • richardson_convergence: Asymptotic grid refinement order p_obs          │
-│   • temporal_mesh_invariance: Temporal rate-bin refinement audit            │
-│   • state_truncation_invariance: Carrying-capacity ceiling refinement audit  │
+│   • richardson_convergence -> RichardsonAudit (typed, real bools)           │
+│   • temporal_mesh_invariance -> MeshInvarianceAudit                         │
+│   • state_truncation_invariance -> TruncationInvarianceAudit                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
