@@ -1,87 +1,62 @@
 # `phosphene-evolutions`
 
-A pure mathematical library for two-parameter evolution families $\{U(t, s)\}_{t \ge s}$, infinitesimal generators, and invariant-preserving numerical operators on Banach spaces.
+A pure, immutable mathematical library for two-parameter evolution families $\{U(t, s)\}_{t \ge s}$, dissipative and conservative Metzler infinitesimal generators, and invariant-preserving numerical operators on Banach spaces.
 
-Part of the **Phosphene Platform** architecture.
-
----
-
-## 1. Applied Foundation: Derivatives Engineering & Financial CTMC Engines
-
-`phosphene-evolutions` uses quantitative derivatives modeling and continuous-time Markov chain (CTMC) local-stochastic volatility engines as its applied grounding.
-
-In quantitative modeling of continuous diffusions, continuous parameter curves (such as volatility term structures $\sigma(t)$, hazard rates $\lambda(t)$, or demographic rates) are frequently discretized onto piecewise-constant observation pillars $T_1 < T_2 < \dots < T_M$. When infinitesimal generators fail to commute ($[Q(T_a), Q(T_b)] \neq \mathbf{0}$), conflating curve calibration with time-stepping numerical propagation injects $\mathcal{O}(\Delta T)$ discretization bias into higher-order sensitivities.
-
-### Architectural Separation: Mode D vs. Mode S
-Rather than treating parameter calibration and state propagation as a single monolithic procedure, `phosphene-evolutions` enforces an explicit separation of concerns:
-
-- **Mode D (Deductive Operator Algebra):** The propagation engine operates strictly within closed algebraic and Banach space invariants. Infinitesimal generators satisfy exact conservation laws ($\mathbf{1}^\top Q = \mathbf{0}^\top$), state vectors preserve probability simplex closure ($\Delta^K$), and non-autonomous families preserve Lie algebra commutator structures ($\mathbf{1}^\top [M_2, M_1] \equiv \mathbf{0}^\top$).
-- **Mode S (Stochastic & Qualitative Parameter Approximation):** Continuous calibration curves are treated as an external approximation layer that supplies smooth time-dependent parameter callables $t \mapsto A(t)$ to `TimeDependentMetzlerGenerator`.
-
-Decoupling continuous calibration from numerical propagation is an **architectural principle**, not an unearned empirical hypothesis. This separation isolates approximation errors to their native layers, preserves the deductive verification of operator algebra, and raises capacity for later compositional orchestration across financial derivatives, demographic transitions, and macroevolutionary diffusion models.
+Part of the **Phosphene Platform** architecture (Epistemic Triad: **DFT → DBF → DBC**).
 
 ---
 
-## 2. Foundational Mathematical Invariants
+## 1. Mode D vs. Mode S: Decoupling Operator Algebra from Calibration
 
-1. **Two-Parameter Semi-Flow Composition Law:**
-   $$U(t, r) \circ U(r, s) = U(t, s) \quad \forall t \ge r \ge s, \qquad U(s, s) = \mathbf{I}$$
-2. **Conservative Metzler Generators (Kolmogorov Forward Equation):**
-   Infinitesimal transition rates $Q \in \mathbb{R}^{K \times K}$ satisfying:
-   $$q_{ij} \ge 0 \; (i \neq j), \qquad q_{ii} \le 0, \qquad \sum_{j=1}^K q_{ij} \equiv 0 \iff Q \mathbf{1} = \mathbf{0}$$
-   Aligned with forward column probability flow: $\dot{p}(t) = Q^\top p(t)$.
-3. **Exact Probability Simplex Geometry ($\Delta^K$):**
-   State probability vectors strictly on $\Delta^K = \{p \in \mathbb{R}^K : p_i \ge 0, \sum_i p_i = 1.0\}$, restored via Wang & Carreira-Perpiñán (2013) exact Euclidean $L^2$ projection with absorbing-boundary isolation (e.g. default states).
-4. **Underflow-Safe Poisson Uniformization (Jensen 1953; Fox & Glynn 1988):**
-   Exact Poisson-weighted stochastic matrix power summation with strictly zero negative drift and $\mathcal{O}(\sqrt{\alpha})$ complexity.
-5. **Lie-Algebraic Magnus Integration (Magnus 1954; Blanes et al. 2009):**
-   Resolves non-commuting generators while preserving zero-sum conservation identically via Lie bracket properties.
+In continuous-time Markov chain (CTMC) engines—from local-stochastic volatility derivatives pricing to demographic and macroevolutionary models—continuous parameter curves ($\sigma(t)$, $\lambda(t)$, $\mu(t)$) are routinely discretized onto piecewise-constant pillars $T_1 < \dots < T_M$. When generators fail to commute ($[Q(T_a), Q(T_b)] \neq \mathbf{0}$), conflating curve calibration with discrete propagation injects $\mathcal{O}(\Delta T)$ bias into terminal distributions and sensitivities.
+
+`phosphene-evolutions` enforces an explicit architectural split:
+
+- **Mode D (Deductive Operator Algebra):** Pure, zero-I/O, read-only Banach-space operators enforcing closed algebraic invariants—sub-Markovian ($Q\mathbf{1} \le \mathbf{0}$) and conservative ($Q\mathbf{1} = \mathbf{0}$) Metzler structure, exact probability simplex geometry ($\Delta^K$), Lie bracket zero-sum closure ($\mathbf{1}^\top [M_2, M_1] \equiv \mathbf{0}^\top$), and semi-flow composition ($U(t, r) \circ U(r, s) = U(t, s)$).
+- **Mode S (External Parameter Approximation):** Smooth calibrated curves are supplied externally as time-dependent callables $t \mapsto A(t)$ into `TimeDependentMetzlerGenerator`, isolating approximation error from numerical propagation.
 
 ---
 
-## 3. Architecture & Tractable Decomposition
+## 2. Modular Architecture & Typed Value Objects
 
-The computational kernel is decomposed into isolated, immutable **units of reason**:
+Every diagnostic, convergence audit, and propagation kernel returns a **strongly-typed frozen dataclass** (`core/results.py`) with read-only NumPy buffers (`flags.writeable = False`)—zero untyped `Dict[str, float]` bags, zero float-encoded booleans, and zero in-place caller buffer mutation.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           1. Core Banach Algebra                            │
-│   • EvolutionFamily Protocol: U(s, s) = I, U(t, r) ∘ U(r, s) = U(t, s)      │
-│   • Lie bracket: commutator(A, B) = A @ B - B @ A                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                       │
+│                   1. Typed Immutable Value Objects (core/results.py)        │
+│   • SpectralStiffness | PoissonWindow | PropagationResult                   │
+│   • RichardsonAudit | MeshInvarianceAudit | TruncationInvarianceAudit       │
+└──────────────────────────────────────┬──────────────────────────────────────┘
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    2. Geometry of the State Space (Simplex)                 │
-│   • simplex_projection: Exact O(K log K) Euclidean projection onto Δᴷ       │
-│   • Boundary isolation: Holds absorbing default state p₀ invariant          │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                       │
+│                    2. Banach Algebra & Simplex Geometry                     │
+│   • EvolutionFamily Protocol & Lie bracket commutator(A, B)                 │
+│   • simplex_projection: Exact O(K log K) KKT projection onto Δᴷ             │
+│   • Boundary isolation: Holds absorbing/default states invariant            │
+└──────────────────────────────────────┬──────────────────────────────────────┘
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         3. Infinitesimal Generators                         │
-│   • MetzlerGenerator: Base dissipative / sub-Markovian generator (Q1 <= 0)  │
-│   • ConservativeMetzlerGenerator: Strictly conservative (Q1 == 0, frozen)   │
-│   • zero_flux_birth_death_generator: Zero forward flux at carrying ceiling K │
-│   • spectral_stiffness -> SpectralStiffness (typed, unit-agnostic)          │
+│                       3. Infinitesimal Generators                           │
+│   • MetzlerGenerator: Base dissipative / sub-Markovian (Q1 <= 0, frozen)    │
+│   • ConservativeMetzlerGenerator: Strictly conservative (Q1 == 0)           │
+│   • zero_flux_birth_death_generator: Zero forward flux at ceiling K         │
+│   • spectral_stiffness -> SpectralStiffness (O(K²) symmetrized, unit-free)  │
 │   • TimeDependentMetzlerGenerator: Validated callable t ↦ A(t)              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                       │
+└──────────────────────────────────────┬──────────────────────────────────────┘
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        4. Propagators & Integrators                         │
-│   • fox_glynn_weights -> PoissonWindow (Rung 0/1 mode-centered window)      │
+│                    4. Decoupled Propagators & Integrators                   │
+│   • fox_glynn_weights(alpha, tol) -> PoissonWindow (Rung 0/1 window)        │
 │   • pade_exponential / pade_result -> PropagationResult (raw vs projected)  │
 │   • jensen_uniformization / jensen_result: Zero negative drift              │
-│   • fox_glynn_uniformization / fox_glynn_result: O(log α + √α) safe sum     │
+│   • fox_glynn_uniformization / fox_glynn_result: True O(log α + √α) jump    │
 │   • magnus2 / magnus4 (+ *_result): Order 2 & 4 Lie-algebraic integrators   │
-│   • MagnusEvolutionFamily: Concrete two-parameter non-autonomous family     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                       │
+│   • MagnusEvolutionFamily: Two-parameter non-autonomous evolution family    │
+└──────────────────────────────────────┬──────────────────────────────────────┘
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        5. Verification & Validation                         │
-│   • richardson_convergence -> RichardsonAudit (typed, real bools)           │
+│                     5. Verification & Falsifiability Audits                 │
+│   • richardson_convergence -> RichardsonAudit (real bools, p_obs, f*)       │
 │   • temporal_mesh_invariance -> MeshInvarianceAudit                         │
 │   • state_truncation_invariance -> TruncationInvarianceAudit                │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -89,63 +64,69 @@ The computational kernel is decomposed into isolated, immutable **units of reaso
 
 ---
 
-## 4. Quickstart: Financial CTMC Pricing Example
+## 3. Quickstart
 
+### A. Non-Autonomous Financial CTMC & Extreme-Stiffness Fox-Glynn
 ```python
 import numpy as np
 from phosphene.evolutions import (
     TimeDependentMetzlerGenerator,
+    fox_glynn_result,
     magnus4,
-    fox_glynn_uniformization,
     spectral_stiffness,
     zero_flux_birth_death_generator,
 )
 
-# 1. Define a calibrated local volatility & skew term structure t -> A(t)
-q_base = np.array([
-    [-1.5,  1.5,  0.0],
-    [ 1.0, -2.0,  1.0],
-    [ 0.0,  1.2, -1.2],
-])
-q_skew = np.array([
-    [-0.3,  0.3,  0.0],
-    [ 0.8, -1.2,  0.4],
-    [ 0.0,  0.5, -0.5],
-])
+# 1. Calibrated local-volatility term structure t -> A(t) (Mode S -> Mode D)
+q_base = np.array([[-1.5, 1.5, 0.0], [1.0, -2.0, 1.0], [0.0, 1.2, -1.2]])
+q_skew = np.array([[-0.3, 0.3, 0.0], [0.8, -1.2, 0.4], [0.0, 0.5, -0.5]])
+gen = TimeDependentMetzlerGenerator(
+    lambda t: q_base + (0.5 + 0.3 * np.sin(2.0 * np.pi * t)) * q_skew,
+    dimension=3,
+)
 
-def calibrated_rate_fn(t: float) -> np.ndarray:
-    # Continuous rotation of volatility skew across option maturity
-    skew_weight = 0.5 + 0.3 * np.sin(2.0 * np.pi * t)
-    return q_base + skew_weight * q_skew
+# 2. Order-4 Lie-algebraic Magnus propagation (eliminates O(Delta T) tenor bias)
+p_maturity = magnus4(gen, np.array([0.1, 0.8, 0.1]), s=0.0, t=1.0, steps=4)
 
-gen = TimeDependentMetzlerGenerator(calibrated_rate_fn, dimension=3)
+# 3. Stiff long-dated propagation (alpha >> 700) with O(log alpha + sqrt(alpha)) Fox-Glynn
+bd_gen = zero_flux_birth_death_generator([2.0, 1.5], [0.8, 1.2])
+stiff = spectral_stiffness(bd_gen)
+res = fox_glynn_result(bd_gen, np.array([0.0, 1.0, 0.0]), duration=30.0, project=False)
+print(f"Fastest decay: {stiff.fastest_decay_rate:.4f} | Raw mass drift: {res.raw_mass_drift:.2e}")
+```
 
-# 2. Propagate state distribution across 1-year maturity using Magnus-4
-# Eliminates O(Delta T) tenor bootstrapping bias without piecewise approximations
-p0 = np.array([0.1, 0.8, 0.1])  # Initial distribution centered ATM
-p_maturity = magnus4(gen, p0, s=0.0, t=1.0, steps=4)
-print(f"Forward state density at T=1.0yr on Δ³: {p_maturity}")
+### B. Dissipative (Sub-Markovian) Metzler Generator
+```python
+from phosphene.evolutions import MetzlerGenerator, pade_result
 
-# 3. Long-dated pension/life contract (T = 30yr, alpha >> 700)
-# Uses mode-centered Fox-Glynn Poisson summation to eliminate float64 underflow
-stiff_base_gen = zero_flux_birth_death_generator([2.0, 1.5], [0.8, 1.2])
-p_long_dated = fox_glynn_uniformization(stiff_base_gen, np.array([0.0, 1.0, 0.0]), duration=30.0)
-print(f"30-year contract terminal distribution: {p_long_dated}")
+# Leaky/killing generator (Q 1 <= 0) for survival-conditioned or absorbing-kill dynamics
+q_kill = np.array([[-1.5, 1.0], [0.5, -1.0]])
+sub_gen = MetzlerGenerator(q_kill)
+out = pade_result(sub_gen, np.array([0.6, 0.4]), duration=2.0, project=False)
+print(f"Surviving probability mass: {out.state.sum():.4f}")
 ```
 
 ---
 
-## 5. Verification & Documentation Standards
+## 4. Development & 5-Layer Verification Pyramid
 
-All mathematical primitives follow strict Design for Testability (DFT) contracts:
-- **Contract 1 (Invariant Preservation):** Strict simplex membership ($\sum p_k = 1.0 \pm 10^{-14}, p_k \ge 0$).
-- **Contract 2 (Dual-Boundary Falsifiability):** Active rejection of invalid mathematical inputs (leaky row sums, negative rates).
-- **Contract 3 (Asymptotic Recovery):** Numerical operators recover exact continuous limits ($U(s, s) = \mathbf{I}$, observed Richardson convergence orders $p_{\text{obs}} \approx 2, 4$).
+All invariants are verified across a 5-layer `pytest` + `hypothesis` pyramid (`tests/conftest.py` `ci`/`calibration` profiles, constructive strategies in `tests/strategies.py`, raw unprojected `target()` defect hunting in `tests/test_integrators_pyramid.py`, and stateful semi-flow/adjoint auditing in `tests/test_evolution_family_stateful.py`):
 
-### Documentation Index
-- **[Quantitative Derivatives & Financial CTMC Modeling](docs/FINANCIAL_CTMC_AND_DERIVATIVES_MODELING.md):** Theoretical grounding in local volatility term structure calibration, tenor bootstrapping bias resolution, and sensitivity invariance.
-- **[Naming Principles as Applied](docs/NAMING_PRINCIPLES_AS_APPLIED.md):** Architectural realization of Frege’s Sense vs. Referent, Hickey’s namespace economy, and procedural verb elimination.
-- **[Literate Specification](docs/LITERATE_SPECIFICATION.md):** Formal axiomatic decomposition and failure-mode mappings.
-- **[Mathematical Genealogy & Numerical Discretization Tensions](docs/NUMERICAL_GENEALOGY_AND_COMPROMISES.md):** Derivations from Kato and Tanabe down to discrete floating-point numerical methods.
-- **[Non-Autonomous Magnus Foundations](docs/NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md):** Lie-algebraic theory, commutator conservation proofs, and convergence radii.
+```bash
+uv sync --all-groups
+uv run pytest --hypothesis-show-statistics
+```
+
+---
+
+## 5. Documentation Index
+
+- **[Axiomatic Phosphene DFT Architecture & Test Pyramid](docs/AXIOMATIC_DFT_ARCHITECTURE_AND_TEST_PYRAMID.md):** Typed value objects, Metzler hierarchy, decoupled propagation, $O(\log \alpha + \sqrt{\alpha})$ Fox-Glynn, and the 5-layer test pyramid.
+- **[The Epistemic Triad (DFT → DBF → DBC)](docs/DESIGN_BY_CALIBRATION_AND_THE_EPISTEMIC_TRIAD.md):** Three-tier progression from software purity to falsifiability and continuous calibration.
+- **[Quantitative Derivatives & Financial CTMC Modeling](docs/FINANCIAL_CTMC_AND_DERIVATIVES_MODELING.md):** Tenor bootstrapping bias resolution and sensitivity invariance.
+- **[Naming Principles as Applied](docs/NAMING_PRINCIPLES_AS_APPLIED.md):** Frege's Sense vs. Referent, Hickey's namespace economy, and procedural verb elimination.
+- **[Literate Specification](docs/LITERATE_SPECIFICATION.md):** Unit-by-unit axiomatic decomposition and failure-mode mappings.
+- **[Mathematical Genealogy & Numerical Compromises](docs/NUMERICAL_GENEALOGY_AND_COMPROMISES.md):** Discretization tensions from Kato/Tanabe to finite-precision arithmetic.
+- **[Non-Autonomous Magnus Foundations](docs/NON_AUTONOMOUS_MAGNUS_FOUNDATIONS.md):** Lie-algebraic commutator conservation proofs and convergence radii.
 - **[Local Python Numerical Genealogy](docs/PYTHON_NUMERICAL_GENEALOGY.md):** Ecosystem survey across SciPy, QuTiP, PyEMMA, and Diffrax.
+- **[Full Documentation Index](docs/INDEX.md)**

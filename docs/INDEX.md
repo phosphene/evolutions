@@ -8,6 +8,13 @@ All mathematical primitives, numerical compromises, and Python implementations f
 
 ## Architecture & Epistemic Documents
 
+0. **[Axiomatic Phosphene DFT Architecture & Test Pyramid](AXIOMATIC_DFT_ARCHITECTURE_AND_TEST_PYRAMID.md)**
+   - Canonical design specification for the modular, typed-value-object architecture of `phosphene-evolutions`.
+   - Typed frozen dataclasses (`SpectralStiffness`, `PoissonWindow`, `PropagationResult`, `RichardsonAudit`, `MeshInvarianceAudit`, `TruncationInvarianceAudit`).
+   - Two-level Metzler hierarchy (`MetzlerGenerator` base for dissipative/sub-Markovian flows beneath `ConservativeMetzlerGenerator`).
+   - Decoupled raw linear action vs. Euclidean simplex projection (`*_result` diagnostics eliminating Anti-Pattern 5.4) and true $O(\log \alpha + \sqrt{\alpha})$ Fox-Glynn decomposition.
+   - 5-layer `pytest` + `hypothesis` verification pyramid (`conftest.py` profiles, constructive strategies, `target()` defect hunting, and `RuleBasedStateMachine`).
+
 1. **[The Epistemic Triad: Design for Testability, Falsifiability, and Calibration](DESIGN_BY_CALIBRATION_AND_THE_EPISTEMIC_TRIAD.md)**
    - The three-tier epistemic progression of the Phosphene platform:
      - **Tier 1 (Design for Testability):** Purity boundaries, zero I/O, immutable buffers, and isolated units of reason.
