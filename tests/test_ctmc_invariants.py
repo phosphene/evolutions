@@ -61,9 +61,9 @@ def test_symmetrized_eigensolver_matches_general_schur():
     exact_eigs = np.linalg.eigvals(gen.matrix)
     exact_fastest = abs(float(np.sort(np.real(exact_eigs))[0]))
 
-    assert np.isclose(audit["fastest_mode_hz"], exact_fastest, atol=1e-10)
+    assert np.isclose(audit.fastest_decay_rate, exact_fastest, atol=1e-10)
     # Check Gershgorin CFL bound is conservative: dt_cfl_gershgorin <= dt_cfl_exact
-    assert audit["gershgorin_cfl_dt"] <= audit["cfl_critical_dt"] + 1e-12
+    assert audit.gershgorin_cfl_dt <= audit.cfl_critical_dt + 1e-12
 
 
 def test_simplex_boundary_isolation_preserves_extinction():
@@ -122,8 +122,8 @@ def test_dual_axis_richardson_temporal_and_state_truncation():
         return np.array([0.5 + 0.1 * (dt**2), 0.5 - 0.1 * (dt**2)])
 
     temp_audit = temporal_mesh_invariance(mock_temporal_solver, base_dt=0.1)
-    assert temp_audit["converged"] == 1.0
-    assert 1.9 < temp_audit["order_of_convergence"] < 2.1
+    assert temp_audit.converged is True
+    assert 1.9 < temp_audit.order_of_convergence < 2.1
 
     # 2. State truncation audit: Poisson tail mass settling as K doubles
     def mock_k_solver(k: int) -> float:
@@ -131,5 +131,5 @@ def test_dual_axis_richardson_temporal_and_state_truncation():
         return 1.0 - 1.0 / float(k)
 
     k_audit = state_truncation_invariance(mock_k_solver, base_k=10)
-    assert k_audit["converged"] == 1.0
-    assert k_audit["truncation_leak_detected"] == 0.0
+    assert k_audit.converged is True
+    assert k_audit.truncation_leak_detected is False

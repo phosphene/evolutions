@@ -23,10 +23,10 @@ def test_richardson_second_order_convergence():
 
     res = richardson_convergence(evaluator, base_step=0.2)
 
-    assert res["converged"] == 1.0
-    assert 1.95 < res["order_of_convergence"] < 2.05
-    assert abs(res["extrapolated_continuum_value"] - 1.0) < 1e-3
-    assert res["relative_discretization_error"] < 0.05
+    assert res.converged is True
+    assert 1.95 < res.order_of_convergence < 2.05
+    assert abs(res.extrapolated_continuum_value - 1.0) < 1e-3
+    assert res.relative_discretization_error < 0.05
 
 
 def test_richardson_divergence_detection():
@@ -42,8 +42,8 @@ def test_richardson_divergence_detection():
             return 0.8
 
     res = richardson_convergence(oscillatory, base_step=0.1)
-    assert res["converged"] == 0.0
-    assert res["order_of_convergence"] == -1.0
+    assert res.converged is False
+    assert res.order_of_convergence == -1.0
 
 
 def test_richardson_invalid_step_raises():

@@ -1,37 +1,17 @@
-"""Jensen uniformization and underflow-safe Fox-Glynn Poisson randomization propagators.
+"""Jensen uniformization and true O(log alpha + sqrt(alpha)) Fox-Glynn Poisson randomization.
+
+Separates:
+1. ``fox_glynn_weights(alpha, tol) -> PoissonWindow``: Pure Rung 0/1 mode-centered Poisson
+   probability window (underflow-safe for arbitrary alpha >> 709.78).
+2. ``jensen_result`` / ``fox_glynn_result``: Exact raw linear operator action + optional
+   simplex restoration returning auditable ``PropagationResult`` (eliminating Anti-Pattern 5.4).
+3. Binary exponentiation jump ``matrix_power(P_disc, left)`` so Fox-Glynn achieves true
+   O(log alpha + sqrt(alpha)) complexity rather than O(alpha).
 
 Genealogy:
-    - Actuarial & Probability Origins: Jensen, A. (1953) "Markoff chains as an aid in
-      the study of Markoff processes", Skandinavisk Aktuarietidskrift, 36, 87-91.
-    - Queueing & Operations Research: Grassmann, W. K. (1977) "Transient solutions in
-      Markovian queues", European Journal of Operational Research, 1(6), 396-402;
-      Gross, D. & Miller, D. R. (1984) "The randomization technique as a modeling tool
-      and solution procedure for transient Markov processes", Operations Research, 32(2), 343-361.
-    - Underflow-Safe Stable Poisson Weighting: Fox, B. L. & Glynn, P. W. (1988)
-      "Computing Poisson probabilities", Communications of the ACM, 31(4), 440-445.
-
-Mathematical Formulation:
-    Continuous-time Markov chain flow exp(tau * Q^T) is transformed into an exact Poisson-weighted
-    mixture of powers of a discrete-time stochastic matrix P_disc:
-        p(t + tau) = sum_{m=0}^inf (exp(-alpha) * alpha^m / m!) * (P_disc)^m p(t)
-    where:
-        gamma = max_i |q_ii| (uniformization rate)
-        P_disc = I + (1 / gamma) * Q^T  (discrete-time transition probability matrix)
-        alpha = gamma * tau            (expected Poisson events over interval)
-
-Numerical Discretization & Mathematical Invariants:
-    1. Zero Negative Drift: Because P_disc has strictly non-negative entries and row/column sums
-       equal to 1, evaluating the Poisson mixture involves only non-negative matrix-vector
-       products. Zero negative probability mass is created by construction.
-    2. Underflow Horizon (alpha > 709.78): In IEEE 754 double precision, exp(-alpha) underflows
-       to 0.0 when alpha > 709.78. Direct forward summation fails completely for deep branches
-       or high carrying capacities.
-    3. Fox-Glynn Centered Algorithm:
-       Fox & Glynn (1988) eliminate underflow by centering the evaluation at the Poisson mode
-       m = floor(alpha), computing log-weights via Stirling's series or recurrence ratios,
-       and stepping outward symmetrically into left and right tails until weights drop below
-       truncation tolerance. This reduces matvec operations from O(alpha) to O(sqrt(alpha))
-       and operates stably for arbitrary alpha (e.g. alpha = 10^4 or 10^6).
+    Rung: 1/2 strictly non-negative stochastic randomization oracle.
+    Literature: Jensen (1953); Grassmann (1977); Gross & Miller (1984);
+        Fox & Glynn (1988) Comm. ACM 31(4):440–445.
 """
 
 from __future__ import annotations
@@ -40,57 +20,208 @@ import math
 
 import numpy as np
 
-from phosphene.evolutions.core.simplex import project_to_simplex
-from phosphene.evolutions.generators.metzler import ConservativeMetzlerGenerator
+from phosphene.evolutions.core.results import PoissonWindow, PropagationResult
+from phosphene.evolutions.core.simplex import simplex_projection
+from phosphene.evolutions.generators.metzler import MetzlerGenerator
 
 
-def jensen_uniformization(
-    generator: ConservativeMetzlerGenerator,
+def fox_glynn_weights(alpha: float, tol: float = 1e-12) -> PoissonWindow:
+    """Mode-centered underflow-safe Fox-Glynn (1988) Poisson truncation window [L, R].
+
+    Genealogy:
+        Rung: 0/1 pure Poisson weight kernel decoupled from matrix-vector propagation.
+        Literature: Fox & Glynn (1988) Comm. ACM 31(4):440–445.
+
+    Objective:
+        w_j = Pois(j; alpha) / sum_{m=L}^R Pois(m; alpha) for j in [L, R],
+        centered at mode m = floor(alpha) with O(sqrt(alpha)) active window width.
+
+    Dimensions:
+        alpha: [dimensionless] Expected Poisson event count >= 0.
+        tol: [dimensionless] Tail mass tolerance > 0.
+        Returns: Immutable ``PoissonWindow`` with read-only normalized ``weights``.
+
+    Boundary & Falsification Semantics:
+        - alpha < 0, tol <= 0, or non-finite inputs -> raises ValueError.
+        - alpha == 0.0 -> returns window [0, 0] with weights = [1.0].
+    """
+    if not math.isfinite(alpha) or alpha < 0.0:
+        raise ValueError(f"alpha must be finite and >= 0.0, got {alpha}")
+    if not math.isfinite(tol) or tol <= 0.0:
+        raise ValueError(f"tol must be finite and > 0.0, got {tol}")
+
+    if alpha == 0.0:
+        return PoissonWindow(
+            alpha=0.0,
+            left=0,
+            right=0,
+            weights=np.array([1.0], dtype=np.float64),
+            tail_tolerance=tol,
+        )
+
+    m = int(math.floor(alpha))
+    sigma = math.sqrt(max(alpha, 1.0))
+    k_width = int(math.ceil(math.sqrt(max(-2.0 * math.log(tol), 1.0)) * sigma * 2.5)) + 6
+    l_idx = max(0, m - k_width)
+    r_idx = m + k_width
+
+    weights = np.zeros(r_idx - l_idx + 1, dtype=np.float64)
+    mode_offset = m - l_idx
+    weights[mode_offset] = 1.0
+
+    # Downward recurrence from mode m to l_idx
+    actual_l = l_idx
+    cur_val = 1.0
+    for j in range(m, l_idx, -1):
+        cur_val *= j / alpha
+        idx = j - 1 - l_idx
+        if cur_val < tol * 1e-4:
+            actual_l = j
+            break
+        weights[idx] = cur_val
+
+    # Upward recurrence from mode m to r_idx
+    actual_r = r_idx
+    cur_val = 1.0
+    for j in range(m, r_idx):
+        cur_val *= alpha / (j + 1)
+        idx = j + 1 - l_idx
+        if cur_val < tol * 1e-4:
+            actual_r = j
+            break
+        weights[idx] = cur_val
+
+    trimmed = weights[actual_l - l_idx : actual_r - l_idx + 1]
+    sum_w = float(np.sum(trimmed))
+    if sum_w > 0.0:
+        trimmed = trimmed / sum_w
+
+    return PoissonWindow(
+        alpha=alpha,
+        left=actual_l,
+        right=actual_r,
+        weights=trimmed,
+        tail_tolerance=tol,
+    )
+
+
+def fox_glynn_result(
+    generator: MetzlerGenerator,
     initial_distribution: np.ndarray,
     duration: float,
     tol: float = 1e-12,
-) -> np.ndarray:
-    """Propagate state distribution via standard Jensen uniformization (mild to moderate alpha).
+    project: bool = True,
+) -> PropagationResult:
+    """Propagate state via O(log alpha + sqrt(alpha)) Fox-Glynn uniformization with full audit.
 
-    Args:
-        generator: ConservativeMetzlerGenerator instance Q.
-        initial_distribution: 1D probability array p(0) on Delta^K.
-        duration: Elapsed time duration tau >= 0.
-        tol: Truncation tolerance for Poisson tail mass.
+    Genealogy:
+        Rung: 2 strictly non-negative randomization propagator.
+        Literature: Fox & Glynn (1988) Comm. ACM 31(4):440–445.
 
-    Returns:
-        1D probability vector p(tau) strictly on Delta^K.
+    Objective:
+        P_disc = I + (1 / gamma) Q^T,   p_L = (P_disc)^L p_0   [O(log L) binary exponentiation]
+        p_raw = sum_{j=L}^R w_j (P_disc)^(j - L) p_L           [O(sqrt(alpha)) matvecs]
 
-    Raises:
-        ValueError: If duration < 0.0 or tol <= 0.0.
+    Dimensions:
+        generator: ``MetzlerGenerator`` (or ``ConservativeMetzlerGenerator``) [T^-1].
+        initial_distribution: 1D state vector p(0) of length K.
+        duration: [T] Non-negative elapsed time >= 0.
+        project: If True (default), projects final state onto Delta^K (recommended for conservative chains).
+        Returns: Immutable ``PropagationResult`` exposing ``raw_mass_drift`` and ``min_raw_entry``.
     """
-    if duration < 0.0:
-        raise ValueError(f"Duration must be non-negative, got {duration}")
-    if tol <= 0.0:
-        raise ValueError(f"Tolerance must be positive, got {tol}")
-    if duration == 0.0:
-        return project_to_simplex(initial_distribution)
+    if not math.isfinite(duration) or duration < 0.0:
+        raise ValueError(f"Duration must be finite and >= 0.0, got {duration}")
+    if not math.isfinite(tol) or tol <= 0.0:
+        raise ValueError(f"Tolerance must be finite and > 0.0, got {tol}")
 
-    q = generator.matrix
-    n = generator.dimension
+    p0 = np.asarray(initial_distribution, dtype=np.float64)
+    if p0.ndim != 1 or len(p0) != generator.dimension:
+        raise ValueError(f"initial_distribution must be 1D of length {generator.dimension}, got {p0.shape}")
+    if not np.all(np.isfinite(p0)):
+        raise ValueError("initial_distribution must contain only finite values")
 
-    # Uniformization rate gamma = max_i |q_ii|
-    gamma = float(np.max(np.abs(np.diag(q))))
-    if gamma == 0.0:
-        return project_to_simplex(initial_distribution)
+    init_mass = float(np.sum(p0))
+    gamma = generator.max_exit_rate
+    if duration == 0.0 or gamma == 0.0:
+        final = simplex_projection(p0) if project else p0.copy()
+        return PropagationResult(
+            state=final,
+            raw_mass_drift=0.0,
+            min_raw_entry=float(np.min(p0)),
+            projected=project,
+            steps_evaluated=0,
+        )
 
     alpha = gamma * duration
+    win = fox_glynn_weights(alpha=alpha, tol=tol)
+    p_disc = np.eye(generator.dimension, dtype=np.float64) + (1.0 / gamma) * generator.matrix.T
 
-    # If alpha exceeds float64 underflow boundary, route to Fox-Glynn
+    # O(log L) jump directly to P_disc^L p0, avoiding O(alpha) leading matvecs
+    if win.left > 0:
+        p_term = np.linalg.matrix_power(p_disc, win.left) @ p0
+    else:
+        p_term = p0.copy()
+
+    acc = np.zeros(generator.dimension, dtype=np.float64)
+    for offset in range(win.width):
+        w = float(win.weights[offset])
+        if w > 0.0:
+            acc += w * p_term
+        if offset + 1 < win.width:
+            p_term = p_disc @ p_term
+
+    raw_mass_drift = abs(float(np.sum(acc)) - init_mass)
+    min_raw_entry = float(np.min(acc))
+    final_state = simplex_projection(acc) if project else acc
+
+    return PropagationResult(
+        state=final_state,
+        raw_mass_drift=raw_mass_drift,
+        min_raw_entry=min_raw_entry,
+        projected=project,
+        steps_evaluated=win.width,
+    )
+
+
+def jensen_result(
+    generator: MetzlerGenerator,
+    initial_distribution: np.ndarray,
+    duration: float,
+    tol: float = 1e-12,
+    project: bool = True,
+) -> PropagationResult:
+    """Propagate state via standard Jensen (1953) uniformization (auto-routing alpha > 700 to Fox-Glynn)."""
+    if not math.isfinite(duration) or duration < 0.0:
+        raise ValueError(f"Duration must be finite and >= 0.0, got {duration}")
+    if not math.isfinite(tol) or tol <= 0.0:
+        raise ValueError(f"Tolerance must be finite and > 0.0, got {tol}")
+
+    p0 = np.asarray(initial_distribution, dtype=np.float64)
+    if p0.ndim != 1 or len(p0) != generator.dimension:
+        raise ValueError(f"initial_distribution must be 1D of length {generator.dimension}, got {p0.shape}")
+    if not np.all(np.isfinite(p0)):
+        raise ValueError("initial_distribution must contain only finite values")
+
+    init_mass = float(np.sum(p0))
+    gamma = generator.max_exit_rate
+    if duration == 0.0 or gamma == 0.0:
+        final = simplex_projection(p0) if project else p0.copy()
+        return PropagationResult(
+            state=final,
+            raw_mass_drift=0.0,
+            min_raw_entry=float(np.min(p0)),
+            projected=project,
+            steps_evaluated=0,
+        )
+
+    alpha = gamma * duration
     if alpha > 700.0:
-        return fox_glynn_uniformization(generator, initial_distribution, duration, tol=tol)
+        return fox_glynn_result(generator, p0, duration, tol=tol, project=project)
 
-    p_disc = np.eye(n, dtype=np.float64) + (1.0 / gamma) * q.T
-
+    p_disc = np.eye(generator.dimension, dtype=np.float64) + (1.0 / gamma) * generator.matrix.T
     poisson_prob = math.exp(-alpha)
     total_weight = poisson_prob
-
-    p_term = initial_distribution.copy()
+    p_term = p0.copy()
     acc = poisson_prob * p_term
 
     j = 1
@@ -102,108 +233,45 @@ def jensen_uniformization(
         acc += poisson_prob * p_term
         j += 1
 
-    return project_to_simplex(acc)
+    raw_mass_drift = abs(float(np.sum(acc)) - init_mass)
+    min_raw_entry = float(np.min(acc))
+    final_state = simplex_projection(acc) if project else acc
+
+    return PropagationResult(
+        state=final_state,
+        raw_mass_drift=raw_mass_drift,
+        min_raw_entry=min_raw_entry,
+        projected=project,
+        steps_evaluated=j,
+    )
 
 
-def fox_glynn_uniformization(
-    generator: ConservativeMetzlerGenerator,
+def jensen_uniformization(
+    generator: MetzlerGenerator,
     initial_distribution: np.ndarray,
     duration: float,
     tol: float = 1e-12,
+    project: bool = True,
 ) -> np.ndarray:
-    """Propagate state distribution via underflow-safe Fox-Glynn Poisson uniformization.
+    """Propagate state distribution via Jensen (1953) uniformization, returning read-only array."""
+    return jensen_result(generator, initial_distribution, duration, tol=tol, project=project).state
 
-    Genealogy:
-        Fox, B. L. & Glynn, P. W. (1988) "Computing Poisson probabilities",
-        Communications of the ACM, 31(4), 440-445.
 
-    Algorithm:
-        1. Find Poisson mode m = floor(alpha).
-        2. Determine lower and upper truncation indices [L, R] such that tail sums <= tol.
-        3. Compute normalized weights w_j = Poisson(j; alpha) centered at mode m without
-           underflowing, by accumulating relative ratios w_{j+1}/w_j = alpha / (j+1).
-        4. Accumulate sum_{j=L}^R w_j (P_disc)^j p(0).
+def fox_glynn_uniformization(
+    generator: MetzlerGenerator,
+    initial_distribution: np.ndarray,
+    duration: float,
+    tol: float = 1e-12,
+    project: bool = True,
+) -> np.ndarray:
+    """Propagate state distribution via Fox-Glynn (1988) uniformization, returning read-only array."""
+    return fox_glynn_result(generator, initial_distribution, duration, tol=tol, project=project).state
 
-    Args:
-        generator: ConservativeMetzlerGenerator instance Q.
-        initial_distribution: 1D probability array p(0) on Delta^K.
-        duration: Elapsed time duration tau >= 0.
-        tol: Truncation tolerance for Poisson tail mass.
 
-    Returns:
-        1D probability vector p(tau) strictly on Delta^K.
-    """
-    if duration < 0.0:
-        raise ValueError(f"Duration must be non-negative, got {duration}")
-    if tol <= 0.0:
-        raise ValueError(f"Tolerance must be positive, got {tol}")
-    if duration == 0.0:
-        return project_to_simplex(initial_distribution)
-
-    q = generator.matrix
-    n = generator.dimension
-
-    gamma = float(np.max(np.abs(np.diag(q))))
-    if gamma == 0.0:
-        return project_to_simplex(initial_distribution)
-
-    alpha = gamma * duration
-    m = int(math.floor(alpha))
-
-    # Standard deviation of Poisson is sqrt(alpha)
-    sigma = math.sqrt(max(alpha, 1.0))
-    # Bounds: Chebyshev/Bennett bound truncation
-    k_width = int(math.ceil(math.sqrt(max(-2.0 * math.log(tol), 1.0)) * sigma * 2.5))
-    l_idx = max(0, m - k_width)
-    r_idx = m + k_width
-
-    # Compute unnormalized log-weights relative to mode m:
-    # log(w_j / w_m) = j * log(alpha) - sum_{k=1}^j log(k) - [ m * log(alpha) - sum_{k=1}^m log(k) ]
-    # We evaluate sequentially via recurrence
-    weights = np.zeros(r_idx - l_idx + 1, dtype=np.float64)
-    mode_offset = m - l_idx
-
-    weights[mode_offset] = 1.0
-
-    # Downward recurrence from mode to L
-    cur_val = 1.0
-    for j in range(m, l_idx, -1):
-        cur_val *= j / alpha
-        idx = j - 1 - l_idx
-        weights[idx] = cur_val
-        if cur_val < tol * 1e-3:
-            # Zero out negligible sub-tail
-            weights[:idx] = 0.0
-            break
-
-    # Upward recurrence from mode to R
-    cur_val = 1.0
-    for j in range(m, r_idx):
-        cur_val *= alpha / (j + 1)
-        idx = j + 1 - l_idx
-        weights[idx] = cur_val
-        if cur_val < tol * 1e-3:
-            weights[idx:] = 0.0
-            break
-
-    # Normalize weights to sum to 1.0
-    sum_w = float(np.sum(weights))
-    if sum_w > 0.0:
-        weights /= sum_w
-
-    # Discrete transition operator: P_disc = I + (1 / gamma) * Q^T
-    p_disc = np.eye(n, dtype=np.float64) + (1.0 / gamma) * q.T
-
-    # Matrix power propagation
-    p_term = initial_distribution.copy()
-    acc = np.zeros(n, dtype=np.float64)
-
-    # Step powers of p_disc from 0 up to R
-    for power in range(r_idx + 1):
-        if power >= l_idx:
-            w = weights[power - l_idx]
-            if w > 0.0:
-                acc += w * p_term
-        p_term = p_disc @ p_term
-
-    return project_to_simplex(acc)
+__all__ = [
+    "fox_glynn_weights",
+    "fox_glynn_result",
+    "jensen_result",
+    "jensen_uniformization",
+    "fox_glynn_uniformization",
+]
